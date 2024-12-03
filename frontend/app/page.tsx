@@ -40,7 +40,7 @@ const Home = () => {
       <Card className="w-full max-w-md shadow-md rounded-none">
         <CardHeader>
           <CardTitle className="text-center text-2xl font-bold">
-            Welcome to Sesh
+            Welcome to Sesh...
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -18,9 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 
 const usernameSchema = z.object({
-  username: z.string().min(2, {
-    message: "Username must be at least 2 characters.",
-  }),
+  username: z
+    .string()
+    .min(2, {
+      message: "Username must be at least 2 characters.",
+    })
+    .max(8, { message: "Username must be less than 8 characters." }),
 });
 
 const messageSchema = z.object({
@@ -128,11 +131,19 @@ const Room = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className="w-screen h-screen flex flex-col items-center justify-center p-4">
       {!connected ? (
-        <div className="p-6 w-full max-w-sm border">
+        <div className="p-6 w-full border">
           <h1 className="text-xl font-bold text-center mb-4">
-            Join Room: <span>{roomID}</span>
+            Join Room:{" "}
+            <span>
+              <button onClick={copyRoomLink} className="hover:underline">
+                {roomID}
+              </button>
+              {copySuccess && (
+                <span className="ml-2 text-sm">{copySuccess}</span>
+              )}
+            </span>
           </h1>
           <Form {...usernameForm}>
             <form
@@ -157,15 +168,15 @@ const Room = () => {
           </Form>
         </div>
       ) : (
-        <div className="p-6 w-full max-w-lg">
+        <div className="p-6 w-full h-full">
           <h2 className="text-xl font-bold mb-2 flex items-center">
             Room:{" "}
-            <button onClick={copyRoomLink} className="ml-2">
+            <button onClick={copyRoomLink} className="ml-2 hover:underline">
               {roomID}
             </button>
             {copySuccess && <span className="ml-2 text-sm">{copySuccess}</span>}
           </h2>
-          <div className="h-64 overflow-y-scroll border p-4 mb-4">
+          <div className="h-[70vh] overflow-y-scroll border p-4 mb-4">
             {messages.map((msg, index) => (
               <div key={index} className="mb-2">
                 <strong>{msg.user}:</strong> {msg.text}
