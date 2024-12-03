@@ -133,7 +133,7 @@ const Room = () => {
   return (
     <div className="w-screen h-screen flex flex-col items-center justify-center p-4">
       {!connected ? (
-        <div className="p-6 w-full border">
+        <div className="p-6 w-full max-w-sm border">
           <h1 className="text-xl font-bold text-center mb-4">
             Join Room:{" "}
             <span>
