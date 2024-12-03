@@ -1,19 +1,57 @@
 "use client";
+
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const usernameSchema = z.object({
+  username: z.string().min(2, {
+    message: "Username must be at least 2 characters.",
+  }),
+});
+
+const messageSchema = z.object({
+  message: z.string().min(1, {}),
+});
 
 const Room = () => {
   const { roomID } = useParams();
   const router = useRouter();
-  const [username, setUsername] = useState<string>("");
   const [connected, setConnected] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
-  const [inputMessage, setInputMessage] = useState<string>("");
+  const [messages, setMessages] = useState<{ user: string; text: string }[]>(
+    []
+  );
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
 
   const socketRef = useRef<WebSocket | null>(null);
+
+  const usernameForm = useForm<z.infer<typeof usernameSchema>>({
+    resolver: zodResolver(usernameSchema),
+    defaultValues: {
+      username: "",
+    },
+  });
+
+  const messageForm = useForm<z.infer<typeof messageSchema>>({
+    resolver: zodResolver(messageSchema),
+    defaultValues: {
+      message: "",
+    },
+  });
 
   useEffect(() => {
     return () => {
@@ -23,18 +61,14 @@ const Room = () => {
     };
   }, []);
 
-  const connectToWebSocket = () => {
-    if (!username.trim()) {
-      alert("Username is required!");
-      return;
-    }
+  const connectToWebSocket = (data: z.infer<typeof usernameSchema>) => {
+    const username = data.username.trim();
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`;
     socketRef.current = new WebSocket(wsURL);
 
     socketRef.current.onopen = () => {
-      console.log("Connected to WebSocket server");
       setConnected(true);
     };
 
@@ -42,15 +76,16 @@ const Room = () => {
       const data = JSON.parse(event.data);
 
       if (data.type === "message") {
-        setMessages((prevMessages) => [...prevMessages, { user: data.user, text: data.text }]);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { user: data.user, text: data.text },
+        ]);
       } else if (data.type === "room-closed") {
-        alert(data.text);
         socketRef.current?.close();
         router.push("/");
       } else if (data.type === "admin-status") {
         setIsAdmin(data.isAdmin);
       } else if (data.type === "error") {
-        alert(data.text);
         socketRef.current?.close();
         setConnected(false);
       }
@@ -61,16 +96,14 @@ const Room = () => {
     };
   };
 
-  const sendMessage = () => {
-    if (socketRef.current && inputMessage.trim()) {
+  const sendMessage = (data: z.infer<typeof messageSchema>) => {
+    const message = data.message.trim();
+
+    if (socketRef.current && message) {
       if (socketRef.current.readyState === WebSocket.OPEN) {
-        const payload = JSON.stringify({ text: inputMessage });
-        console.log("Sending message:", payload);
+        const payload = JSON.stringify({ text: message });
         socketRef.current.send(payload);
-        setInputMessage("");
-      } else {
-        console.error("WebSocket is not open. State:", socketRef.current.readyState);
-        alert("Unable to send message. WebSocket connection is closed.");
+        messageForm.reset();
       }
     }
   };
@@ -86,7 +119,7 @@ const Room = () => {
     navigator.clipboard.writeText(roomLink).then(
       () => {
         setCopySuccess("Link copied!");
-        setTimeout(() => setCopySuccess(""), 2000); // Clear message after 2 seconds
+        setTimeout(() => setCopySuccess(""), 2000);
       },
       (err) => {
         console.error("Failed to copy: ", err);
@@ -95,66 +128,82 @@ const Room = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4">
       {!connected ? (
-        <div className="bg-white p-6 shadow-md rounded-md w-full max-w-sm">
+        <div className="p-6 w-full max-w-sm border">
           <h1 className="text-xl font-bold text-center mb-4">
-            Join Room: <span className="text-blue-500">{roomID}</span>
+            Join Room: <span>{roomID}</span>
           </h1>
-          <input
-            type="text"
-            placeholder="Enter Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md mb-4"
-          />
-          <button
-            onClick={connectToWebSocket}
-            className="w-full bg-blue-500 text-white font-bold py-2 rounded-md hover:bg-blue-600 transition"
-          >
-            Join Room
-          </button>
+          <Form {...usernameForm}>
+            <form
+              onSubmit={usernameForm.handleSubmit(connectToWebSocket)}
+              className="space-y-4"
+            >
+              <FormField
+                control={usernameForm.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter Username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit">Join Room</Button>
+            </form>
+          </Form>
         </div>
       ) : (
-        <div className="bg-white p-6 shadow-md rounded-md w-full max-w-lg">
+        <div className="p-6 w-full max-w-lg">
           <h2 className="text-xl font-bold mb-2 flex items-center">
             Room:{" "}
-            <button onClick={copyRoomLink} className="ml-2 text-blue-500 underline">
+            <button onClick={copyRoomLink} className="ml-2">
               {roomID}
             </button>
-            {copySuccess && (
-              <span className="ml-2 text-green-500 text-sm">{copySuccess}</span>
-            )}
+            {copySuccess && <span className="ml-2 text-sm">{copySuccess}</span>}
           </h2>
-          <div className="h-64 overflow-y-scroll border border-gray-300 rounded-md p-4 mb-4">
+          <div className="h-64 overflow-y-scroll border p-4 mb-4">
             {messages.map((msg, index) => (
               <div key={index} className="mb-2">
-                <strong className="text-blue-500">{msg.user}:</strong> {msg.text}
+                <strong>{msg.user}:</strong> {msg.text}
               </div>
             ))}
           </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              placeholder="Type a message"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              className="flex-grow p-2 border border-gray-300 rounded-md"
-            />
-            <button
-              onClick={sendMessage}
-              className="bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 transition"
+          <Form {...messageForm}>
+            <form
+              onSubmit={messageForm.handleSubmit(sendMessage)}
+              className="flex items-center space-x-2"
             >
-              Send
-            </button>
-          </div>
+              <FormField
+                control={messageForm.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem className="flex-grow">
+                    <FormControl>
+                      <Input
+                        placeholder="Type a message"
+                        {...field}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            messageForm.handleSubmit(sendMessage)();
+                          }
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <Button type="submit">Send</Button>
+            </form>
+          </Form>
           {isAdmin && (
-            <button
-              onClick={handleCloseRoom}
-              className="w-full bg-red-500 text-white font-bold py-2 mt-4 rounded-md hover:bg-red-600 transition"
-            >
+            <Button onClick={handleCloseRoom} className="mt-4">
               Close Room
-            </button>
+            </Button>
           )}
         </div>
       )}
