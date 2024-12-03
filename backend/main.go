@@ -227,11 +227,43 @@ func deleteRoom(roomID string) {
     log.Printf("Room %s deleted\n", roomID)
 }
 
+// RoomExists checks if a room exists and responds accordingly
+func RoomExists(w http.ResponseWriter, r *http.Request) {
+    roomID := r.URL.Query().Get("roomID")
+    log.Printf("RoomExists called with roomID: %s\n", roomID)
+
+    if roomID == "" {
+        log.Println("RoomExists error: roomID is empty")
+        http.Error(w, `{"type":"error", "text":"Room ID is required"}`, http.StatusBadRequest)
+        return
+    }
+
+    rooms.Lock()
+    defer rooms.Unlock()
+
+    _, exists := rooms.data[roomID]
+    if !exists {
+        log.Printf("RoomExists error: Room %s does not exist\n", roomID)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusNotFound)
+        json.NewEncoder(w).Encode(map[string]string{
+            "type": "error",
+            "text": "Room does not exist",
+        })
+        return
+    }
+
+    // If room exists, respond with a success message
+    response := map[string]bool{"exists": exists}
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
 func main() {
     // Set up your routes
     http.HandleFunc("/create-room", CreateRoom)
     http.HandleFunc("/ws", HandleWebSocket)
-
+	http.HandleFunc("/room-exists", RoomExists)
     // Wrap your handlers with CORS middleware
     c := cors.New(cors.Options{
         AllowedOrigins:   []string{"*"},

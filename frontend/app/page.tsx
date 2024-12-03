@@ -5,58 +5,143 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+// Define the zod schema for the Join Room form
+const joinRoomSchema = z.object({
+  roomID: z.string().min(1, { message: "Room ID is required." }),
+});
+
+type JoinRoomFormValues = z.infer<typeof joinRoomSchema>;
 
 const Home = () => {
   const router = useRouter();
-  const [roomID, setRoomID] = useState("");
+  const [copySuccess, setCopySuccess] = useState<string>("");
 
   const getBackendURL = () => {
     return `${window.location.protocol}//${window.location.hostname}:8080`;
   };
 
-  const createRoom = async () => {
-    const response = await fetch(`${getBackendURL()}/create-room`, {
-      method: "POST",
-    });
+  // Initialize react-hook-form for the Join Room form
+  const joinRoomForm = useForm<JoinRoomFormValues>({
+    resolver: zodResolver(joinRoomSchema),
+    defaultValues: {
+      roomID: "",
+    },
+  });
 
-    if (response.ok) {
-      const data = await response.json();
-      router.push(`room/${data.roomID}`);
-    } else {
-      alert("Failed to create a room. Please try again.");
+  // Handler to create a new room
+  const createRoom = async () => {
+    try {
+      const response = await fetch(`${getBackendURL()}/create-room`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        router.push(`/room/${data.roomID}`);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.text || "Failed to create a room. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error creating room:", error);
+      alert("An error occurred while creating the room. Please try again.");
     }
   };
 
-  const joinRoom = () => {
-    if (roomID.trim() === "") {
-      alert("Please enter a room ID!");
-      return;
+  // Handler to join an existing room
+  const joinRoom = async (data: JoinRoomFormValues) => {
+    const roomID = data.roomID.trim();
+
+    try {
+      const response = await fetch(
+        `${getBackendURL()}/room-exists?roomID=${roomID}`
+      );
+      const responseData = await response.json();
+
+      if (responseData.exists) {
+        router.push(`/room/${roomID}`);
+      } else {
+        // This block may not be necessary if you're handling 404
+        joinRoomForm.setError("roomID", {
+          type: "manual",
+          message: "Room not found.",
+        });
+      }
+    } catch (error) {
+      console.error("Error checking room:", error);
+      joinRoomForm.setError("roomID", {
+        type: "manual",
+        message: "An error occurred.",
+      });
     }
-    router.push(`room/${roomID}`);
+  };
+
+  // Function to copy the current page URL to the clipboard
+  const copyRoomLink = () => {
+    const roomLink = `${window.location.origin}`;
+    navigator.clipboard
+      .writeText(roomLink)
+      .then(() => {
+        setCopySuccess("Link copied!");
+        setTimeout(() => setCopySuccess(""), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy: ", err);
+      });
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-md rounded-none">
+      <Card className="w-full max-w-md shadow-md rounded-lg">
         <CardHeader>
           <CardTitle className="text-center text-2xl font-bold">
             Welcome to Sesh...
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col space-y-6">
+            {/* Create Room Button */}
             <Button onClick={createRoom} className="w-full">
               Create Room
             </Button>
-            <div className="flex items-center space-x-2">
-              <Input
-                type="text"
-                placeholder="Enter Room ID"
-                value={roomID}
-                onChange={(e) => setRoomID(e.target.value)}
-              />
-              <Button onClick={joinRoom}>Join</Button>
-            </div>
+
+            {/* Join Room Form */}
+            <Form {...joinRoomForm}>
+              <div className="flex justify-between">
+                <form
+                  onSubmit={joinRoomForm.handleSubmit(joinRoom)}
+                  className="space-y-4 w-full"
+                >
+                  <FormField
+                    control={joinRoomForm.control}
+                    name="roomID"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="Enter Room ID" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </form>
+                <Button type="submit" className="w-2/4 ml-4">
+                  Join
+                </Button>
+              </div>
+            </Form>
           </div>
         </CardContent>
       </Card>
