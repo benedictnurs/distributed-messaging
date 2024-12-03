@@ -119,16 +119,16 @@ const Home = () => {
 
             {/* Join Room Form */}
             <Form {...joinRoomForm}>
-              <div className="flex justify-between">
-                <form
-                  onSubmit={joinRoomForm.handleSubmit(joinRoom)}
-                  className="space-y-4 w-full"
-                >
+              <form
+                onSubmit={joinRoomForm.handleSubmit(joinRoom)}
+                className="space-y-4"
+              >
+                <div className="flex">
                   <FormField
                     control={joinRoomForm.control}
                     name="roomID"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="w-full">
                         <FormControl>
                           <Input placeholder="Enter Room ID" {...field} />
                         </FormControl>
@@ -136,11 +136,11 @@ const Home = () => {
                       </FormItem>
                     )}
                   />
-                </form>
-                <Button type="submit" className="w-2/4 ml-4">
-                  Join
-                </Button>
-              </div>
+                  <Button type="submit" className="w-1/4 ml-3">
+                    Join
+                  </Button>
+                </div>
+              </form>
             </Form>
           </div>
         </CardContent>

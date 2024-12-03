@@ -105,7 +105,6 @@ const Room = () => {
             socketRef.current?.close();
             setConnected(false);
             if (data.text === "Room does not exist") {
-              alert("The room does not exist. Redirecting to homepage.");
               router.push("/");
             } else if (data.text === "Username already exists in the room") {
               usernameForm.setError("username", {
@@ -180,9 +179,7 @@ const Room = () => {
                 {roomID}
               </button>
               {copySuccess && (
-                <span className="ml-2 text-sm">
-                  {copySuccess}
-                </span>
+                <span className="ml-2 text-sm">{copySuccess}</span>
               )}
             </span>
           </h1>
@@ -198,7 +195,11 @@ const Room = () => {
                   <FormItem>
                     <FormLabel>Username</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter Username" {...field} />
+                      <Input
+                        autoComplete="off"
+                        placeholder="Enter Username"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -219,9 +220,7 @@ const Room = () => {
                 {roomID}
               </button>
               {copySuccess && (
-                <span className="ml-2 text-sm">
-                  {copySuccess}
-                </span>
+                <span className="ml-2 text-sm">{copySuccess}</span>
               )}
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}

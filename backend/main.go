@@ -57,7 +57,7 @@ func CreateRoom(w http.ResponseWriter, r *http.Request) {
 func generateRoomID() string {
     rand.Seed(time.Now().UnixNano())
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    id := make([]byte, 8)
+    id := make([]byte, 4)
     for i := range id {
         id[i] = charset[rand.Intn(len(charset))]
     }
