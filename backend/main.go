@@ -260,11 +260,10 @@ func RoomExists(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    // Set up your routes
+    // Set up HTTP server and Route Handlers
     http.HandleFunc("/create-room", CreateRoom)
     http.HandleFunc("/ws", HandleWebSocket)
 	http.HandleFunc("/room-exists", RoomExists)
-    // Wrap your handlers with CORS middleware
     c := cors.New(cors.Options{
         AllowedOrigins:   []string{"*"},
         AllowCredentials: true,

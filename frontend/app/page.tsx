@@ -1,7 +1,5 @@
 "use client";
-
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +23,6 @@ type JoinRoomFormValues = z.infer<typeof joinRoomSchema>;
 
 const Home = () => {
   const router = useRouter();
-  const [copySuccess, setCopySuccess] = useState<string>("");
 
   const getBackendURL = () => {
     return `${window.location.protocol}//${window.location.hostname}:8080`;
@@ -88,12 +85,9 @@ const Home = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col space-y-6">
-            {/* Create Room Button */}
             <Button onClick={createRoom} className="w-full">
               Create Room
             </Button>
-
-            {/* Join Room Form */}
             <Form {...joinRoomForm}>
               <form
                 onSubmit={joinRoomForm.handleSubmit(joinRoom)}
