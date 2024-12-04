@@ -264,6 +264,7 @@ func main() {
     http.HandleFunc("/create-room", CreateRoom)
     http.HandleFunc("/ws", HandleWebSocket)
 	http.HandleFunc("/room-exists", RoomExists)
+
     c := cors.New(cors.Options{
         AllowedOrigins:   []string{"*"},
         AllowCredentials: true,
