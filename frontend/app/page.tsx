@@ -9,7 +9,6 @@ import {
   Form,
   FormField,
   FormItem,
-  FormLabel,
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
@@ -64,7 +63,6 @@ const Home = () => {
   const joinRoom = async (data: JoinRoomFormValues) => {
     const roomID = data.roomID.trim();
 
-    try {
       const response = await fetch(
         `${getBackendURL()}/room-exists?roomID=${roomID}`
       );
@@ -73,41 +71,19 @@ const Home = () => {
       if (responseData.exists) {
         router.push(`/room/${roomID}`);
       } else {
-        // This block may not be necessary if you're handling 404
         joinRoomForm.setError("roomID", {
           type: "manual",
           message: "Room not found.",
         });
       }
-    } catch (error) {
-      console.error("Error checking room:", error);
-      joinRoomForm.setError("roomID", {
-        type: "manual",
-        message: "An error occurred.",
-      });
-    }
-  };
-
-  // Function to copy the current page URL to the clipboard
-  const copyRoomLink = () => {
-    const roomLink = `${window.location.origin}`;
-    navigator.clipboard
-      .writeText(roomLink)
-      .then(() => {
-        setCopySuccess("Link copied!");
-        setTimeout(() => setCopySuccess(""), 2000);
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-      });
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-md rounded-lg">
         <CardHeader>
-          <CardTitle className="text-center text-2xl font-bold">
-            Welcome to Sesh...
+          <CardTitle className="text-center text-4xl font-medium">
+            Welcome to Sesh.
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -130,7 +106,11 @@ const Home = () => {
                     render={({ field }) => (
                       <FormItem className="w-full">
                         <FormControl>
-                          <Input placeholder="Enter Room ID" {...field} />
+                          <Input
+                            autoComplete="off"
+                            placeholder="Enter Room ID"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

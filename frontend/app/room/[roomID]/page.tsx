@@ -111,13 +111,8 @@ const Room = () => {
                 type: "manual",
                 message: "Username is taken.",
               });
-            } else {
-              alert(`Error: ${data.text}`);
             }
             break;
-
-          default:
-            console.warn("Unknown message type:", data.type);
         }
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
@@ -160,7 +155,7 @@ const Room = () => {
     navigator.clipboard
       .writeText(roomLink)
       .then(() => {
-        setCopySuccess("Link copied!");
+        setCopySuccess("Link copied.");
         setTimeout(() => setCopySuccess(""), 2000);
       })
       .catch((err) => {
@@ -172,15 +167,10 @@ const Room = () => {
     <div className="w-screen h-screen flex flex-col items-center justify-center p-4">
       {!connected ? (
         <div className="p-6 w-full max-w-sm border rounded-lg shadow-md">
-          <h1 className="text-xl font-bold text-center mb-4">
-            Join Room:{" "}
+          <h1 className="text-3xl font-medium text-center mb-4">
+            Joining room{" "}
             <span>
-              <button onClick={copyRoomLink} className="hover:underline">
                 {roomID}
-              </button>
-              {copySuccess && (
-                <span className="ml-2 text-sm">{copySuccess}</span>
-              )}
             </span>
           </h1>
           <Form {...usernameForm}>
@@ -214,7 +204,7 @@ const Room = () => {
       ) : (
         <div className="p-4 w-full h-full flex flex-col">
           <div className="flex justify-between mb-4">
-            <h2 className="text-xl font-bold flex items-center">
+            <h2 className="text-2xl font-medium flex items-center">
               Room:{" "}
               <button onClick={copyRoomLink} className="ml-2 hover:underline">
                 {roomID}
@@ -228,10 +218,9 @@ const Room = () => {
           <div className="flex-grow overflow-y-scroll border p-4 mb-4 rounded-lg shadow-inner">
             {messages.map((msg, index) => (
               <div key={index} className="mb-2">
-                <strong>{msg.user}:</strong> {msg.text}
+                <p>{msg.user}: {msg.text}</p>
               </div>
             ))}
-            {/* Empty div to act as the scroll anchor */}
             <div ref={messagesEndRef}></div>
           </div>
           <Form {...messageForm}>
