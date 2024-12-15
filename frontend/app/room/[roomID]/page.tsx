@@ -165,7 +165,7 @@ const Room = () => {
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center p-4">
+    <div className="w-screen h-screen flex flex-col items-center justify-center">
       {!connected ? (
         <WavyBackground>
           <div className="p-6 w-screen max-w-sm border rounded-lg shadow-md bg-black">
@@ -202,8 +202,8 @@ const Room = () => {
           </div>
         </WavyBackground>
       ) : (
-        <div className="p-4 w-full h-full flex flex-col">
-          <div className="flex justify-between mb-4">
+        <div className="p-5 w-full h-full flex flex-col">
+          <div className="flex justify-between mb-4 border-b pb-4">
             <h2 className="text-2xl font-medium flex items-center">
               Room:{" "}
               <button onClick={copyRoomLink} className="ml-2 hover:underline">
@@ -215,12 +215,12 @@ const Room = () => {
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
-          <div
-    className="flex-grow overflow-y-scroll border p-4 mb-4 rounded-lg shadow-inner custom-scrollbar"
-  >            {messages.map((msg, index) => (
-              <div key={index} className="mb-2">
+          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar">
+            {" "}
+            {messages.map((msg, index) => (
+              <div key={index}>
                 <p>
-                  {msg.user}: {msg.text}
+                  <span className="font-medium text-xl">{msg.user}</span>: {msg.text}
                 </p>
               </div>
             ))}
