@@ -14,9 +14,9 @@ body {
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
+    --background: 0 0% 0%; /* Pure black */
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card: 0 0% 0%;;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
@@ -40,9 +40,9 @@ body {
     --chart-5: 340 75% 55%;
   }
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 0 0% 0%; /* Pure black */
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+    --card:  0 0% 0%;;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
@@ -74,4 +74,22 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: white transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.13);
 }

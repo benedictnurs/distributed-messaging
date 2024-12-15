@@ -16,11 +16,13 @@
     "@shadcn/ui": "^0.0.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^11.14.4",
     "lucide-react": "^0.462.0",
     "next": "14.2.16",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.53.2",
+    "simplex-noise": "^4.0.3",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8"

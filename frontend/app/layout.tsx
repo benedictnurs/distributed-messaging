@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "sesh",
-  description: "temmp anon messaging",
+  title: "Seshon",
+  description: "temp anon messaging",
 };
 
 export default function RootLayout({
