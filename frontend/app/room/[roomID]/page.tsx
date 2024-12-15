@@ -35,9 +35,7 @@ const Room = () => {
   const { roomID } = useParams();
   const router = useRouter();
   const [connected, setConnected] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ user: string; text: string }[]>(
-    []
-  );
+  const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string>(""); // Track the current user's username
@@ -232,7 +230,7 @@ const Room = () => {
                     <p className="mb-1 text-sm font-semibold">{msg.user}</p>
                   )}
                   <div
-                    className={`max-w-xs px-3 py-2 rounded-md ${
+                    className={`max-w-xs px-3 py-2 rounded-md break-words ${
                       isCurrentUser
                         ? "bg-white text-black"
                         : "bg-neutral-400 text-black"
@@ -272,8 +270,7 @@ const Room = () => {
                 )}
               />
               <Button type="submit">
-                {" "}
-                <Send />
+                <Send strokeWidth={1} />
               </Button>
             </form>
           </Form>
