@@ -13,6 +13,7 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { WavyBackground } from "@/components/ui/wavy-background";
 
 // Define the zod schema for the Join Room form
 const joinRoomSchema = z.object({
@@ -60,65 +61,67 @@ const Home = () => {
   const joinRoom = async (data: JoinRoomFormValues) => {
     const roomID = data.roomID.trim();
 
-      const response = await fetch(
-        `${getBackendURL()}/room-exists?roomID=${roomID}`
-      );
-      const responseData = await response.json();
+    const response = await fetch(
+      `${getBackendURL()}/room-exists?roomID=${roomID}`
+    );
+    const responseData = await response.json();
 
-      if (responseData.exists) {
-        router.push(`/room/${roomID}`);
-      } else {
-        joinRoomForm.setError("roomID", {
-          type: "manual",
-          message: "Room not found.",
-        });
-      }
+    if (responseData.exists) {
+      router.push(`/room/${roomID}`);
+    } else {
+      joinRoomForm.setError("roomID", {
+        type: "manual",
+        message: "Room not found.",
+      });
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-md rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-center text-4xl font-medium">
-            Welcome to Sesh.
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col space-y-6">
-            <Button onClick={createRoom} className="w-full">
-              Create Room
-            </Button>
-            <Form {...joinRoomForm}>
-              <form
-                onSubmit={joinRoomForm.handleSubmit(joinRoom)}
-                className="space-y-4"
-              >
-                <div className="flex">
-                  <FormField
-                    control={joinRoomForm.control}
-                    name="roomID"
-                    render={({ field }) => (
-                      <FormItem className="w-full">
-                        <FormControl>
-                          <Input
-                            autoComplete="off"
-                            placeholder="Enter Room ID"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" className="w-1/4 ml-3">
-                    Join
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
-        </CardContent>
-      </Card>
+      <WavyBackground>
+        <Card className="w-full max-w-md shadow-md rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-center text-4xl font-medium">
+              Welcome to Seshon
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col space-y-6">
+              <Button onClick={createRoom} className="w-full">
+                Create Room
+              </Button>
+              <Form {...joinRoomForm}>
+                <form
+                  onSubmit={joinRoomForm.handleSubmit(joinRoom)}
+                  className="space-y-4"
+                >
+                  <div className="flex">
+                    <FormField
+                      control={joinRoomForm.control}
+                      name="roomID"
+                      render={({ field }) => (
+                        <FormItem className="w-full">
+                          <FormControl>
+                            <Input
+                              autoComplete="off"
+                              placeholder="Enter Room ID"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" className="w-1/4 ml-3">
+                      Join
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </CardContent>
+        </Card>
+      </WavyBackground>
     </div>
   );
 };

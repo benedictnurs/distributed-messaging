@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { WavyBackground } from "@/components/ui/wavy-background";
 
 const usernameSchema = z.object({
   username: z
@@ -164,46 +165,45 @@ const Room = () => {
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col items-center justify-center p-4">
+    <div className="w-screen h-screen flex flex-col items-center justify-center">
       {!connected ? (
-        <div className="p-6 w-full max-w-sm border rounded-lg shadow-md">
-          <h1 className="text-3xl font-medium text-center mb-4">
-            Joining room{" "}
-            <span>
-                {roomID}
-            </span>
-          </h1>
-          <Form {...usernameForm}>
-            <form
-              onSubmit={usernameForm.handleSubmit(connectToWebSocket)}
-              className="space-y-4"
-            >
-              <FormField
-                control={usernameForm.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input
-                        autoComplete="off"
-                        placeholder="Enter Username"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full">
-                Join Room
-              </Button>
-            </form>
-          </Form>
-        </div>
+        <WavyBackground>
+          <div className="p-6 w-screen max-w-sm border rounded-lg shadow-md bg-black">
+            <h1 className="text-3xl font-medium text-center mb-4">
+              Joining room <span>{roomID}</span>
+            </h1>
+            <Form {...usernameForm}>
+              <form
+                onSubmit={usernameForm.handleSubmit(connectToWebSocket)}
+                className="space-y-4"
+              >
+                <FormField
+                  control={usernameForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input
+                          autoComplete="off"
+                          placeholder="Enter Username"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full">
+                  Join Room
+                </Button>
+              </form>
+            </Form>
+          </div>
+        </WavyBackground>
       ) : (
-        <div className="p-4 w-full h-full flex flex-col">
-          <div className="flex justify-between mb-4">
+        <div className="p-5 w-full h-full flex flex-col">
+          <div className="flex justify-between mb-4 border-b pb-4">
             <h2 className="text-2xl font-medium flex items-center">
               Room:{" "}
               <button onClick={copyRoomLink} className="ml-2 hover:underline">
@@ -215,10 +215,13 @@ const Room = () => {
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
-          <div className="flex-grow overflow-y-scroll border p-4 mb-4 rounded-lg shadow-inner">
+          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar">
+            {" "}
             {messages.map((msg, index) => (
-              <div key={index} className="mb-2">
-                <p>{msg.user}: {msg.text}</p>
+              <div key={index}>
+                <p>
+                  <span className="font-medium text-xl">{msg.user}</span>: {msg.text}
+                </p>
               </div>
             ))}
             <div ref={messagesEndRef}></div>
