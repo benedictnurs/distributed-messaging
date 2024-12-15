@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { WavyBackground } from "@/components/ui/wavy-background";
+import { Send } from "lucide-react";
 
 const usernameSchema = z.object({
   username: z
@@ -39,6 +40,7 @@ const Room = () => {
   );
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
+  const [currentUsername, setCurrentUsername] = useState<string>(""); // Track the current user's username
 
   const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null); // Ref for auto-scroll
@@ -72,6 +74,7 @@ const Room = () => {
 
   const connectToWebSocket = (data: z.infer<typeof usernameSchema>) => {
     const username = data.username.trim();
+    setCurrentUsername(username); // Set the current username once connected
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`;
@@ -215,15 +218,31 @@ const Room = () => {
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
-          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar">
-            {" "}
-            {messages.map((msg, index) => (
-              <div key={index}>
-                <p>
-                  <span className="font-medium text-xl">{msg.user}</span>: {msg.text}
-                </p>
-              </div>
-            ))}
+          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
+            {messages.map((msg, index) => {
+              const isCurrentUser = msg.user === currentUsername;
+              return (
+                <div
+                  key={index}
+                  className={`mb-4 flex flex-col ${
+                    isCurrentUser ? "items-end" : "items-start"
+                  }`}
+                >
+                  {!isCurrentUser && (
+                    <p className="mb-1 text-sm font-semibold">{msg.user}</p>
+                  )}
+                  <div
+                    className={`max-w-xs px-3 py-2 rounded-md ${
+                      isCurrentUser
+                        ? "bg-white text-black"
+                        : "bg-neutral-400 text-black"
+                    }`}
+                  >
+                    <p>{msg.text}</p>
+                  </div>
+                </div>
+              );
+            })}
             <div ref={messagesEndRef}></div>
           </div>
           <Form {...messageForm}>
@@ -252,7 +271,10 @@ const Room = () => {
                   </FormItem>
                 )}
               />
-              <Button type="submit">Send</Button>
+              <Button type="submit">
+                {" "}
+                <Send />
+              </Button>
             </form>
           </Form>
         </div>

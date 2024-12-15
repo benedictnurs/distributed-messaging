@@ -79,7 +79,7 @@ const Home = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <WavyBackground>
-        <Card className="w-full max-w-md shadow-md rounded-lg">
+        <Card className="w-screen max-w-md shadow-md rounded-lg">
           <CardHeader>
             <CardTitle className="text-center text-4xl font-medium">
               Welcome to Seshon
