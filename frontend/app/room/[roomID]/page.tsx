@@ -38,10 +38,10 @@ const Room = () => {
   const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
-  const [currentUsername, setCurrentUsername] = useState<string>(""); // Track the current user's username
+  const [currentUsername, setCurrentUsername] = useState<string>("");
 
   const socketRef = useRef<WebSocket | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null); // Ref for auto-scroll
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const usernameForm = useForm<z.infer<typeof usernameSchema>>({
     resolver: zodResolver(usernameSchema),
@@ -72,7 +72,7 @@ const Room = () => {
 
   const connectToWebSocket = (data: z.infer<typeof usernameSchema>) => {
     const username = data.username.trim();
-    setCurrentUsername(username); // Set the current username once connected
+    setCurrentUsername(username);
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`;
@@ -206,12 +206,11 @@ const Room = () => {
         <div className="p-5 w-full h-full flex flex-col">
           <div className="flex justify-between mb-4 border-b pb-4">
             <h2 className="text-2xl font-medium flex items-center">
-              Room:{" "}
               <button onClick={copyRoomLink} className="ml-2 hover:underline">
                 {roomID}
               </button>
               {copySuccess && (
-                <span className="ml-2 text-sm">{copySuccess}</span>
+                <span className="ml-2 text-sm text-green-400">{copySuccess}</span>
               )}
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
@@ -232,7 +231,7 @@ const Room = () => {
                   <div
                     className={`max-w-xs px-3 py-2 rounded-md break-words ${
                       isCurrentUser
-                        ? "bg-white text-black"
+                        ? "bg-green-400 text-black"
                         : "bg-neutral-400 text-black"
                     }`}
                   >
