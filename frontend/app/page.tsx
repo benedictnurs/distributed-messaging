@@ -82,7 +82,7 @@ const Home = () => {
         <Card className="w-full max-w-md shadow-md rounded-lg">
           <CardHeader>
             <CardTitle className="text-center text-4xl font-medium">
-              Welcome to Seshon
+              Welcome to <span className="text-green-400 italic">Seshon</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
