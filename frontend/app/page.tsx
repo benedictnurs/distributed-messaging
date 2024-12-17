@@ -77,9 +77,9 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center">
       <WavyBackground>
-        <Card className="w-full max-w-md shadow-md rounded-lg">
+        <Card className="w-full sm:w-screen max-w-md shadow-md rounded-lg">
           <CardHeader>
             <CardTitle className="text-center text-4xl font-medium">
               Welcome to <span className="text-green-400 italic">Seshon</span>
