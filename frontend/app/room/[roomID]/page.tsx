@@ -21,10 +21,16 @@ import { Send } from "lucide-react";
 const usernameSchema = z.object({
   username: z
     .string()
-    .min(2, {
-      message: "Username must be at least 2 characters.",
+    .min(3, {
+      message: "Username must be at least 3 characters.",
     })
-    .max(8, { message: "Username must be less than 8 characters." }),
+    .max(8, {
+      message: "Username must be less than 8 characters.",
+    })
+    .regex(/^(?!\.)[a-zA-Z0-9_.]*(?<!\.)$/, {
+      message:
+        "Username can only contain letters, numbers, underscores (_), and periods (.), and cannot start or end with a period (.)",
+    }),
 });
 
 const messageSchema = z.object({
@@ -35,7 +41,9 @@ const Room = () => {
   const { roomID } = useParams();
   const router = useRouter();
   const [connected, setConnected] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ user: string; text: string }[]>(
+    []
+  );
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string>("");
@@ -171,7 +179,7 @@ const Room = () => {
         <WavyBackground>
           <div className="p-6 w-screen max-w-sm border rounded-lg shadow-md bg-black">
             <h1 className="text-3xl font-medium text-center mb-4">
-              Joining room <span>{roomID}</span>
+              Joining room <span className="text-green-400">{roomID}</span>
             </h1>
             <Form {...usernameForm}>
               <form
@@ -206,11 +214,14 @@ const Room = () => {
         <div className="p-5 w-full h-full flex flex-col">
           <div className="flex justify-between mb-4 border-b pb-4">
             <h2 className="text-2xl font-medium flex items-center">
-              <button onClick={copyRoomLink} className="ml-2 hover:underline">
+              <button
+                onClick={copyRoomLink}
+                className="ml-2 hover:underline text-green-400"
+              >
                 {roomID}
               </button>
               {copySuccess && (
-                <span className="ml-2 text-sm text-green-400">{copySuccess}</span>
+                <span className="ml-2 text-sm">{copySuccess}</span>
               )}
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
@@ -269,7 +280,7 @@ const Room = () => {
                 )}
               />
               <Button type="submit">
-                <Send strokeWidth={1} />
+                <Send strokeWidth={1.5}/>
               </Button>
             </form>
           </Form>
