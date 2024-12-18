@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/cors"
@@ -55,7 +54,6 @@ func CreateRoom(w http.ResponseWriter, r *http.Request) {
 
 // generateRoomID creates a unique random string for room IDs
 func generateRoomID() string {
-	rand.Seed(time.Now().UnixNano())
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	id := make([]byte, 4)
 	for i := range id {
