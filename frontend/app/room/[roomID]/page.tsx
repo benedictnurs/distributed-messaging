@@ -136,7 +136,7 @@ const Room = () => {
 
     socketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
-      alert("A WebSocket error occurred. Please try again.");
+      alert("Room Closed. Goodbye!");
       setConnected(false);
     };
   };
