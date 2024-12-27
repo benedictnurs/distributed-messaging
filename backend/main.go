@@ -273,11 +273,25 @@ func CloseAllRooms() {
 	}
 }
 
+func CloseAllRoomsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	CloseAllRooms()
+
+	response := map[string]string{"message": "All rooms have been closed"}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
 	// Set up HTTP server and Route Handlers
 	http.HandleFunc("/create-room", CreateRoom)
 	http.HandleFunc("/ws", HandleWebSocket)
 	http.HandleFunc("/room-exists", RoomExists)
+	http.HandleFunc("/close-all-rooms", CloseAllRoomsHandler)
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
