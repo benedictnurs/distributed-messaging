@@ -26,7 +26,7 @@ This project is a distributed messaging platform designed for real-time, low-lat
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-repo/distributed-messaging-platform.git
+git clone https://github.com/your-repo/distributed-messaging.git
 cd distributed-messaging-platform
 ```
 
