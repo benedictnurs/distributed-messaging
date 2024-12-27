@@ -26,7 +26,9 @@ const Home = () => {
   const router = useRouter();
 
   const getBackendURL = () => {
-    return `${window.location.protocol}//${window.location.hostname}:8080`;
+    /*    return `${window.location.protocol}//${window.location.hostname}:8080`; */
+    return `http://54.193.113.63:8080`;
+
   };
 
   // Initialize react-hook-form for the Join Room form
