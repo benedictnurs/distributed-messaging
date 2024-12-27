@@ -235,7 +235,7 @@ const Room = () => {
               return (
                 <div
                   key={index}
-                  className={`mb-4 flex flex-col ${
+                  className={`mb-2 flex flex-col ${
                     isCurrentUser ? "items-end" : "items-start"
                   }`}
                 >
