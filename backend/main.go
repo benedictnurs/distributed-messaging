@@ -257,6 +257,22 @@ func RoomExists(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// CloseAllRooms closes every room
+func CloseAllRooms() {
+	// Lock the global rooms
+	rooms.Lock()
+	var roomIDs []string
+	for id := range rooms.data {
+		roomIDs = append(roomIDs, id)
+	}
+	rooms.Unlock()
+
+	// DELETE >:)
+	for _, id := range roomIDs {
+		closeRoom(id)
+	}
+}
+
 func main() {
 	// Set up HTTP server and Route Handlers
 	http.HandleFunc("/create-room", CreateRoom)
