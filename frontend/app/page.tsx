@@ -27,7 +27,7 @@ const Home = () => {
 
   const getBackendURL = () => {
     /*    return `${window.location.protocol}//${window.location.hostname}:8080`; */
-    return `https://api.seshon.tech:8080`;
+    return `https://api.seshon.tech`;
 
   };
 
