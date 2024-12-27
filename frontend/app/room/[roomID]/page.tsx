@@ -41,9 +41,7 @@ const Room = () => {
   const { roomID } = useParams();
   const router = useRouter();
   const [connected, setConnected] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ user: string; text: string }[]>(
-    []
-  );
+  const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string>("");
@@ -83,10 +81,10 @@ const Room = () => {
     setCurrentUsername(username);
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    /*const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`; */
+    // const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`;
     const wsURL = `wss://api.seshon.tech/ws?roomID=${roomID}&username=${username}`;
     socketRef.current = new WebSocket(wsURL);
-  
+
     socketRef.current.onopen = () => {
       setConnected(true);
     };
@@ -227,9 +225,21 @@ const Room = () => {
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
-          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
+
+          {/* 
+            Use overflow-y-auto and overscroll-none to prevent "bouncy" or 
+            extra Y-overflow on mobile devices
+          */}
+          <div className="flex-grow overflow-y-auto overscroll-none mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
             {messages.map((msg, index) => {
               const isCurrentUser = msg.user === currentUsername;
+
+              // Only show username if:
+              // 1) It's the first message (index === 0), OR
+              // 2) The previous message has a different user
+              const showUsername =
+                index === 0 || messages[index - 1].user !== msg.user;
+
               return (
                 <div
                   key={index}
@@ -237,9 +247,14 @@ const Room = () => {
                     isCurrentUser ? "items-end" : "items-start"
                   }`}
                 >
-                  {!isCurrentUser && (
+                  {/* 
+                    If it's NOT the current user and this is the first message 
+                    of a consecutive sequence, show the username 
+                  */}
+                  {!isCurrentUser && showUsername && (
                     <p className="mb-1 text-sm font-semibold">{msg.user}</p>
                   )}
+
                   <div
                     className={`max-w-xs px-3 py-2 rounded-md break-words ${
                       isCurrentUser
@@ -254,6 +269,7 @@ const Room = () => {
             })}
             <div ref={messagesEndRef}></div>
           </div>
+
           <Form {...messageForm}>
             <form
               onSubmit={messageForm.handleSubmit(sendMessage)}
@@ -281,7 +297,7 @@ const Room = () => {
                 )}
               />
               <Button type="submit">
-                <Send strokeWidth={1.5}/>
+                <Send strokeWidth={1.5} />
               </Button>
             </form>
           </Form>
