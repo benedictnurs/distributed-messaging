@@ -226,17 +226,9 @@ const Room = () => {
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
 
-          {/* 
-            Use overflow-y-auto and overscroll-none to prevent "bouncy" or 
-            extra Y-overflow on mobile devices
-          */}
           <div className="flex-grow overflow-y-auto overscroll-none mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
             {messages.map((msg, index) => {
               const isCurrentUser = msg.user === currentUsername;
-
-              // Only show username if:
-              // 1) It's the first message (index === 0), OR
-              // 2) The previous message has a different user
               const showUsername =
                 index === 0 || messages[index - 1].user !== msg.user;
 
@@ -247,10 +239,6 @@ const Room = () => {
                     isCurrentUser ? "items-end" : "items-start"
                   }`}
                 >
-                  {/* 
-                    If it's NOT the current user and this is the first message 
-                    of a consecutive sequence, show the username 
-                  */}
                   {!isCurrentUser && showUsername && (
                     <p className="mb-1 text-sm font-semibold">{msg.user}</p>
                   )}
