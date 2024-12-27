@@ -41,7 +41,9 @@ const Room = () => {
   const { roomID } = useParams();
   const router = useRouter();
   const [connected, setConnected] = useState<boolean>(false);
-  const [messages, setMessages] = useState<{ user: string; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ user: string; text: string }[]>(
+    []
+  );
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [copySuccess, setCopySuccess] = useState<string>("");
   const [currentUsername, setCurrentUsername] = useState<string>("");
@@ -81,10 +83,10 @@ const Room = () => {
     setCurrentUsername(username);
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    // const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`;
+    /*const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`; */
     const wsURL = `wss://api.seshon.tech/ws?roomID=${roomID}&username=${username}`;
     socketRef.current = new WebSocket(wsURL);
-
+  
     socketRef.current.onopen = () => {
       setConnected(true);
     };
@@ -134,7 +136,7 @@ const Room = () => {
 
     socketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
-      alert("Room Not Found");
+      alert("A WebSocket error occurred. Please try again.");
       setConnected(false);
     };
   };
@@ -225,13 +227,11 @@ const Room = () => {
             </h2>
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
-
-          <div className="flex-grow overflow-y-hidden overscroll-none mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
+          <div className="flex-grow overflow-y-scroll mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
             {messages.map((msg, index) => {
               const isCurrentUser = msg.user === currentUsername;
               const showUsername =
-                index === 0 || messages[index - 1].user !== msg.user;
-
+              index === 0 || messages[index - 1].user !== msg.user;
               return (
                 <div
                   key={index}
@@ -257,7 +257,6 @@ const Room = () => {
             })}
             <div ref={messagesEndRef}></div>
           </div>
-
           <Form {...messageForm}>
             <form
               onSubmit={messageForm.handleSubmit(sendMessage)}
@@ -285,7 +284,7 @@ const Room = () => {
                 )}
               />
               <Button type="submit">
-                <Send strokeWidth={1.5} />
+                <Send strokeWidth={1.5}/>
               </Button>
             </form>
           </Form>
