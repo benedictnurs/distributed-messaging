@@ -84,7 +84,7 @@ const Room = () => {
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     /*const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`; */
-    const wsURL = `https://54.193.113.63:8080:8080/ws?roomID=${roomID}&username=${username}`;
+    const wsURL = `http://54.193.113.63:8080:8080/ws?roomID=${roomID}&username=${username}`;
     socketRef.current = new WebSocket(wsURL);
 
     socketRef.current.onopen = () => {
