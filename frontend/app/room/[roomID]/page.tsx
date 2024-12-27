@@ -134,7 +134,7 @@ const Room = () => {
 
     socketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
-      alert("A WebSocket error occurred. Please try again.");
+      alert("Room Not Found");
       setConnected(false);
     };
   };
@@ -226,7 +226,7 @@ const Room = () => {
             {isAdmin && <Button onClick={handleCloseRoom}>Close Room</Button>}
           </div>
 
-          <div className="flex-grow overflow-y-auto overscroll-none mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
+          <div className="flex-grow overflow-y-hidden overscroll-none mb-4 rounded-lg shadow-inner custom-scrollbar p-4">
             {messages.map((msg, index) => {
               const isCurrentUser = msg.user === currentUsername;
               const showUsername =
