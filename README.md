@@ -27,7 +27,7 @@ This project is a distributed messaging platform designed for real-time, low-lat
 
 ```bash
 git clone https://github.com/benedictnurs/distributed-messaging.git
-cd distributed-messaging-platform
+cd distributed-messaging
 ```
 
 2. Build and run the Docker container:
