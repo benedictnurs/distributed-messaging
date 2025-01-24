@@ -14,11 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <>
-      <Analytics />(
       <html lang="en">
         <body className="antialiased sf-font">{children}</body>
       </html>
-      );
+      <Analytics />
     </>
   );
 }
