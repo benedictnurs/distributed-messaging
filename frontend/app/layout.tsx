@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "Seshon",
@@ -12,10 +13,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased sf-font">
-        {children}
-      </body>
-    </html>
+    <>
+      <Analytics />(
+      <html lang="en">
+        <body className="antialiased sf-font">{children}</body>
+      </html>
+      );
+    </>
   );
 }
