@@ -18,7 +18,8 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
       - uses: docker/build-push-action@v5
         with:
-          # NOTE: Updated 'file' parameter to specify the correct Dockerfile location.
+          # NOTE: Set the build context to the 'backend' directory.
+          context: ./backend
           file: ./backend/Dockerfile
           push: true
           tags: ghcr.io/benedictnurs/distributed-messaging:latest
