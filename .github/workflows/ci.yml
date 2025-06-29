@@ -4,7 +4,7 @@ on:
     branches: [main]
 permissions:
   contents: read
-  # NOTE: Added packages: write permission to allow publishing to GHCR.
+  # NOTE: 'write:packages' includes read permissions.
   packages: write
 jobs:
   build:
