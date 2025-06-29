@@ -295,8 +295,9 @@ func main() {
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://www.seshon.tech"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"}, // Be explicit here too
 	})
 
 	handler := c.Handler(http.DefaultServeMux)
