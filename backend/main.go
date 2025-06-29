@@ -294,8 +294,9 @@ func main() {
 	http.HandleFunc("/close-all-rooms", CloseAllRoomsHandler)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"https://www.seshon.tech"},
 		AllowCredentials: true,
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"}, // Be explicit here too
 	})
 
 	handler := c.Handler(http.DefaultServeMux)
