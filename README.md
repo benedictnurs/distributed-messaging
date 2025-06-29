@@ -15,7 +15,7 @@ This project is a distributed messaging platform designed for real-time, low-lat
 ## Getting Started
 
 ### Prerequisites
-
+- Terraform
 - Docker
 - Go (version 1.20 or later)
 - AWS EC2 instance
