@@ -4,6 +4,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+  # NOTE: Added packages: write permission to allow publishing to GHCR.
   packages: write
 jobs:
   build:
@@ -18,7 +19,6 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
       - uses: docker/build-push-action@v5
         with:
-          # NOTE: Set the build context to the 'backend' directory.
           context: ./backend
           file: ./backend/Dockerfile
           push: true
