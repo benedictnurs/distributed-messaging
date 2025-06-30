@@ -36,8 +36,39 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
+            # This script runs on your OCI server via SSH.
+            # 'set -e' ensures the script will exit immediately if a command fails.
+            set -e
+
+            echo "--- STARTING DEPLOYMENT ---"
+
+            # 1. Log in to GitHub Container Registry (GHCR) to pull the private image.
+            echo "--> Logging in to GHCR..."
             echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
-            sudo docker pull ${{ secrets.DOCKER_IMAGE }}
+
+            # 2. Stop the currently running container if it exists.
+            # The '|| true' part prevents an error if the container isn't running on the first deploy.
+            echo "--> Stopping existing container..."
             sudo docker stop backend-app || true
+
+            # 3. Remove the stopped container. This is necessary to reuse the name.
+            echo "--> Removing existing container..."
             sudo docker rm backend-app || true
+
+            # 4. Pull the new version of the image from GHCR.
+            echo "--> Pulling new Docker image..."
+            sudo docker pull ${{ secrets.DOCKER_IMAGE }}
+
+            # 5. Run a new container from the updated image.
+            #    -d: Detached mode (runs in the background)
+            #    --restart=always: Restarts the container if the server reboots
+            #    --name: Gives the container a predictable name
+            #    -p: Maps the host's port 8080 to the container's port 8080
+            echo "--> Starting new container..."
             sudo docker run -d --restart=always --name backend-app -p 8080:8080 ${{ secrets.DOCKER_IMAGE }}
+
+            # 6. (Best Practice) Clean up old, dangling Docker images to save disk space.
+            echo "--> Pruning old images..."
+            sudo docker image prune -f
+
+            echo "--- DEPLOYMENT COMPLETE ---"
