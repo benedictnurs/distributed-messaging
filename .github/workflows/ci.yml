@@ -36,7 +36,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
-            echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.GITHUB_OWNER }} --password-stdin
+            echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
             sudo docker pull ${{ secrets.DOCKER_IMAGE }}
             sudo docker stop backend-app || true
             sudo docker rm backend-app || true
