@@ -1,4 +1,4 @@
-name: Build & Push Docker
+name: Build & Deploy Backend
 on:
   push:
     branches: [main]
@@ -7,6 +7,7 @@ permissions:
   packages: write
 jobs:
   build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,11 +15,29 @@ jobs:
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: benedictnurs
+          username: ${{ secrets.REPO_OWNER }}
           password: ${{ secrets.GHCR_TOKEN }}
       - uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ghcr.io/benedictnurs/distributed-messaging:latest
+          tags: ${{ secrets.DOCKER_IMAGE }}
+
+  deploy:
+    name: Deploy to OCI
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
+            sudo docker pull ${{ secrets.DOCKER_IMAGE }}
+            sudo docker stop backend-app || true
+            sudo docker rm backend-app || true
+            sudo docker run -d --restart=always --name backend-app -p 8080:8080 ${{ secrets.DOCKER_IMAGE }}
