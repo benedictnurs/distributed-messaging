@@ -1,3 +1,9 @@
+// File: backend/main.go
+// Description: A simple WebSocket server that allows users to create rooms, join them, and
+// communicate with each other. The first user to join a room becomes the admin, and they
+// can close the room, which disconnects all users. The server also supports checking if a
+// room exists and closing all rooms at once.
+
 package main
 
 import (
