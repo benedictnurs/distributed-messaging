@@ -201,7 +201,7 @@ func closeRoom(roomID string) {
 	rooms.Unlock()
 
 	if !exists {
-		log.Printf("Room %s does not exist, cannot close\n", roomID)
+		log.Printf("Room %s does'nt exist, cannot close\n", roomID)
 		return
 	}
 
