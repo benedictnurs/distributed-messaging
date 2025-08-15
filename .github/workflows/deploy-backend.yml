@@ -29,15 +29,44 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for instance to be ready
+        run: |
+          echo "Waiting 2 minutes for OCI instance to fully boot and complete user-data script..."
+          sleep 120
+              
+      - name: Test SSH Connection
+        run: |
+          echo "Testing SSH connectivity..."
+          for i in {1..10}; do
+            if ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i <(echo "${{ secrets.DEPLOY_KEY }}") ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "echo 'SSH connection successful'"; then
+              echo "SSH connection established on attempt $i"
+              break
+            else
+              echo "SSH attempt $i failed, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+              
       - name: SSH and Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          timeout: 60s
+          command_timeout: 15m
           script: |
             set -e
             echo "--- STARTING DEPLOYMENT ---"
+                
+            # Wait for user-data script to complete
+            echo "--> Waiting for cloud-init to complete..."
+            while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
+              echo "Waiting for cloud-init to finish..."
+              sleep 10
+            done
+                
+            echo "--> Cloud-init completed, proceeding with deployment..."
 
             echo "--> Logging in to GHCR..."
             echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
