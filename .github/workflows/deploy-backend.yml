@@ -28,31 +28,112 @@ jobs:
     name: Deploy to OCI
     needs: build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
+      - name: Wait before retry (except first attempt)
+        if: $matrix.attempt > 1
+        run: |
+          echo "Waiting 5 minutes before retry attempt ${{ matrix.attempt }}..."
+          sleep 300
+              
+      - name: Wait for instance to be ready
+        run: |
+          echo "Waiting 2 minutes for OCI instance to fully boot and complete user-data script..."
+          sleep 120
+              
+      - name: Test SSH Connection
+        id: ssh_test
+        continue-on-error: true
+        run: |
+          echo "Testing SSH connectivity (attempt ${{ matrix.attempt }})..."
+          for i in {1..10}; do
+            if ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i <(echo "${{ secrets.DEPLOY_KEY }}") ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "echo 'SSH connection successful'"; then
+              echo "SSH connection established on attempt $i"
+              exit 0
+            else
+              echo "SSH attempt $i failed, waiting 30 seconds..."
+              sleep 30
+            fi
+          done
+          exit 1
+              
       - name: SSH and Deploy
+        if: $steps.ssh_test.outcome == 'success'
+        id: deploy
+        continue-on-error: true
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
+          timeout: 60s
+          command_timeout: 15m
           script: |
             set -e
-            echo "--- STARTING DEPLOYMENT ---"
+            echo "--- STARTING DEPLOYMENT (attempt ${{ matrix.attempt }}) ---"
+                
+            # Wait for user-data script to complete
+            echo "--> Waiting for cloud-init to complete..."
+            while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
+              echo "Waiting for cloud-init to finish..."
+              sleep 10
+            done
+                
+            echo "--> Cloud-init completed, proceeding with deployment..."
 
             echo "--> Logging in to GHCR..."
-            echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
 
             echo "--> Stopping existing container..."
-            sudo docker stop backend-app || true
-            sudo docker rm backend-app || true
+            docker stop backend-app || true
+            docker rm backend-app || true
 
             echo "--> Pulling new Docker image..."
-            sudo docker pull ${{ secrets.DOCKER_IMAGE }}
+            docker pull ${{ secrets.DOCKER_IMAGE }}
 
             echo "--> Starting new container..."
-            sudo docker run -d --restart=always --name backend-app -p 8080:8080 ${{ secrets.DOCKER_IMAGE }}
+            docker run -d --restart=always --name backend-app -p 8080:8080 ${{ secrets.DOCKER_IMAGE }}
 
             echo "--> Pruning old images..."
-            sudo docker image prune -f
+            docker image prune -f
 
-            echo "--- DEPLOYMENT COMPLETE ---"
+            echo "--- DEPLOYMENT COMPLETE (attempt ${{ matrix.attempt }}) ---"
+                
+      - name: Cancel remaining attempts on success
+        if: $steps.deploy.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const run_id = context.runId;
+                
+            // Get all jobs for this workflow run
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner,
+              repo,
+              run_id
+            });
+                
+            // Cancel any pending deploy jobs (other matrix attempts)
+            for (const job of jobs.data.jobs) {
+              if (job.name.includes('Deploy to OCI') && job.status === 'queued') {
+                console.log('Cancelling job: ' + job.name);
+                await github.rest.actions.cancelWorkflowRun({
+                  owner,
+                  repo,
+                  run_id: job.run_id
+                });
+              }
+            }
+                
+      - name: Report failure and continue to next attempt
+        if: $steps.deploy.outcome == 'failure'
+        run: |
+          echo "Deployment attempt ${{ matrix.attempt }} failed. Will retry in 5 minutes..."
+          if [ "${{ matrix.attempt }}" = "10" ]; then
+            echo "All 10 deployment attempts failed!"
+            exit 1
+          fi
