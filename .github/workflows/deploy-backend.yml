@@ -40,7 +40,8 @@ jobs:
             echo "--- STARTING DEPLOYMENT ---"
 
             echo "--> Logging in to GHCR..."
-            echo ${{ secrets.GHCR_TOKEN }} | sudo docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.REPO_OWNER }} --password-stdin
+
 
             echo "--> Stopping existing container..."
             sudo docker stop backend-app || true
