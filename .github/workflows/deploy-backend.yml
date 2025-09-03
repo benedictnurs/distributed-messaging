@@ -53,7 +53,7 @@ deploy:
                 sudo docker pull ${{ secrets.DOCKER_IMAGE }}
 
                 echo "--> Starting new container..."
-                sudo docker run -d --restart=always --name backend-app -p 443:443 ${{ secrets.DOCKER_IMAGE }}
+                sudo docker run -d --restart=always --name backend-app -p 3000:3000 ${{ secrets.DOCKER_IMAGE }}
 
                 echo "--> Pruning old images..."
                 sudo docker image prune -f
