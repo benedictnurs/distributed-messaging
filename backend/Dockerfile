@@ -26,7 +26,7 @@ WORKDIR /app
 COPY --from=builder /app/app .
 
 # Expose the port your application listens on
-EXPOSE 8080
+EXPOSE 443
 
 # Command to run the application
 CMD ["./app"]

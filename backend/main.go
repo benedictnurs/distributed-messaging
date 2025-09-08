@@ -201,7 +201,7 @@ func closeRoom(roomID string) {
 	rooms.Unlock()
 
 	if !exists {
-		log.Printf("Room %s does'nt exist, cannot close\n", roomID)
+		log.Printf("Room %s does not exist, cannot close\n", roomID)
 		return
 	}
 
@@ -307,6 +307,6 @@ func main() {
 	})
 
 	handler := c.Handler(http.DefaultServeMux)
-	log.Println("Server started on port 8080")
-	http.ListenAndServe(":8080", handler)
+	log.Println("Server started on port 443")
+	http.ListenAndServe(":443", handler)
 }

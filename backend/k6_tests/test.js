@@ -19,7 +19,7 @@ export const options = {
   },
 };
 
-const WS_URL = 'ws://localhost:8080/ws';
+const WS_URL = 'ws://localhost:443/ws';
 const rooms = Array.from({ length: 100 }, (_, i) => `room_${i + 1}`);
 const usersPerRoom = 10;
 

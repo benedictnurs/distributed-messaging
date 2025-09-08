@@ -26,4 +26,4 @@ jobs:
           docker build -t chat-backend .
           docker stop chat-backend || true
           docker rm chat-backend || true
-          docker run -d --name chat-backend -p 8080:8080 chat-backend
+          docker run -d --name chat-backend -p 443:443 chat-backend

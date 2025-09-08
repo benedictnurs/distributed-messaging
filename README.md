@@ -36,7 +36,7 @@ cd distributed-messaging
 docker-compose up --build
 ```
 
-3. Access the platform at `http://<your-ec2-public-ip>:8080`.
+3. Access the platform at `http://<your-ec2-public-ip>:443`.
 
 4. Test WebSocket functionality using tools like Postman or a WebSocket client.
 
