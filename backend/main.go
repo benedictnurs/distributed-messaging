@@ -298,6 +298,10 @@ func main() {
 	http.HandleFunc("/ws", HandleWebSocket)
 	http.HandleFunc("/room-exists", RoomExists)
 	http.HandleFunc("/close-all-rooms", CloseAllRoomsHandler)
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://www.seshon.tech"},

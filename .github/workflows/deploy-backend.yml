@@ -58,7 +58,8 @@ jobs:
       id: build
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ./backend
+        file: ./backend/Dockerfile
         platforms: linux/amd64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
@@ -110,6 +111,10 @@ jobs:
     - name: Deploy new container
       run: |
         echo "🚀 Deploying new container..."
+        
+        # Create network if it doesn't exist
+        docker network create app-network || echo "Network already exists"
+        
         docker run -d \
           --name api-container \
           --restart unless-stopped \
