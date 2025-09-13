@@ -1,11 +1,7 @@
-name: Runner Check
-on:
-  push:
-    branches: [main, dev]
-  workflow_dispatch:
-
+name: SMOKE
+on: workflow_dispatch
 jobs:
   ping:
-    runs-on: [self-hosted, docker, prod]
+    runs-on: [self-hosted]   # <— ONLY this label
     steps:
       - run: echo "✅ Picked up by $(hostname)"; uname -a
