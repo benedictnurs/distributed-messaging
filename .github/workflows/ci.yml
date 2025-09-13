@@ -219,7 +219,7 @@ EOF
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
           BACKEND_CONTAINER_NAME=api-prod
           DB_CONTAINER_NAME=db-prod
-          DB_VOLUME_name=db-prod-data
+          DB_VOLUME_NAME=db-prod-data
           EOF
 
           if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
@@ -280,3 +280,4 @@ EOF
 
       - name: Prune old images (optional)
         run: docker image prune -f
+
