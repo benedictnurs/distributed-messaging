@@ -80,7 +80,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy-dev:
-    name: Deploy (dev)
+    name: Deploy (Dev)
     needs: build
     if: github.ref == 'refs/heads/dev'
     runs-on: [self-hosted, docker, dev]
