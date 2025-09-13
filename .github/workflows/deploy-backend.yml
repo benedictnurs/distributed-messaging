@@ -1,8 +1,8 @@
-name: Build & Deploy (All-in-One)
+name: Build & Deploy Backend
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,246 +11,128 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ${{ github.repository }}-backend
-  DATABASE_IMAGE: ${{ github.repository }}-database
-
-  BACKEND_CONTEXT: ./backend
-  BACKEND_DOCKERFILE: ./backend/Dockerfile
-  DATABASE_CONTEXT: ./database
-  DATABASE_DOCKERFILE: ./database/Dockerfile
-
-  # Runtime
-  APP_NETWORK: app-network
-  BACKEND_HOST_PORT: "443"
-  BACKEND_CONTAINER_PORT: "443"
-  DATABASE_HOST_PORT: "5432"
-  DATABASE_CONTAINER_PORT: "5432"
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
-    name: Build & Push Images
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
+    
     outputs:
-      backend_tag: ${{ steps.tags.outputs.backend_tag }}
-      database_tag: ${{ steps.tags.outputs.database_tag }}
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
+      
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Decide tags (latest for main, dev for dev)
-        id: tags
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: [self-hosted, terraform, vultr, docker]
+    
+    steps:
+      - name: Deploy new container
         run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "backend_tag=latest"  >> $GITHUB_OUTPUT
-            echo "database_tag=latest" >> $GITHUB_OUTPUT
+          set -e
+          echo "🚀 Starting deployment on self-hosted runner..."
+          # Login to GHCR
+          echo "🔐 Logging in to GitHub Container Registry..."
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          # Stop and remove existing API container
+          echo "🛑 Stopping existing API container..."
+          docker stop api-container || echo "Container not running"
+          docker rm api-container || echo "Container not found"
+          # Pull latest image
+          echo "📥 Pulling latest API image..."
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Ensure network exists
+          echo "🌐 Creating network if needed..."
+          docker network create app-network || echo "Network already exists"
+          # Deploy new API container
+          echo "🚀 Deploying new API container..."
+          docker run -d \
+            --name api-container \
+            --restart unless-stopped \
+            --network app-network \
+            -p 443:443 \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Verify deployment
+          echo "✅ Verifying deployment..."
+          sleep 5
+          
+          if docker ps | grep -q api-container; then
+            echo "✅ API container is running successfully"
+            docker ps | grep api-container
           else
-            echo "backend_tag=dev"  >> $GITHUB_OUTPUT
-            echo "database_tag=dev" >> $GITHUB_OUTPUT
+            echo "❌ API container failed to start"
+            docker logs api-container || true
+            exit 1
           fi
-
-      - name: Backend – Build & Push
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ env.BACKEND_CONTEXT }}
-          file: ${{ env.BACKEND_DOCKERFILE }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.tags.outputs.backend_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Database – Build & Push (skip if no Dockerfile)
-        if: ${{ hashFiles(env.DATABASE_DOCKERFILE) != '' }}
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ env.DATABASE_CONTEXT }}
-          file: ${{ env.DATABASE_DOCKERFILE }}
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.DATABASE_IMAGE }}:${{ steps.tags.outputs.database_tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy-dev:
-    name: Deploy (Dev)
-    needs: build
-    if: github.ref == 'refs/heads/dev'
-    runs-on: [self-hosted, docker, dev]
+          # Test health endpoint
+          echo "🏥 Testing health endpoint..."
+          if curl -f -s http://localhost:443/health > /dev/null 2>&1; then
+            echo "✅ Health check passed"
+          else
+            echo "⚠️ Health check failed, but container is running"
+          fi
+          # Clean up old images
+          echo "🧹 Cleaning up old images..."
+          docker image prune -f
+          echo "🎉 Deployment completed successfully!"
+          echo "📊 Container status:"
+          docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  notify:
+    name: Deployment Notification
+    needs: [build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Ensure external app network
-        run: docker network create "${{ env.APP_NETWORK }}" || true
-
-      - name: Prepare compose files
+      - name: Deployment Status
         run: |
-          mkdir -p ./secrets
-
-          # Optional env files for services (from GitHub Secrets)
-          if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
-            printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "🌐 API is live at: https://api.seshon.tech"
+            echo "🐳 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          elif [ "${{ needs.deploy.result }}" == "failure" ]; then
+            echo "❌ Deployment failed!"
+            echo "Check the deployment logs for details."
+            exit 1
+          elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+            echo "⏭️ Deployment skipped"
           fi
-          if [ -n "${{ secrets.DATABASE_ENV_FILE }}" ]; then
-            printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
-          fi
-
-          # .env for Compose (dev)
-          cat > .env <<EOF
-          REGISTRY=${{ env.REGISTRY }}
-          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
-          DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
-
-          BACKEND_TAG=dev
-          DATABASE_TAG=dev
-
-          BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
-          BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
-          DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
-          DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
-
-          BACKEND_CONTAINER_NAME=api-dev
-          DB_CONTAINER_NAME=db-dev
-          DB_VOLUME_NAME=db-dev-data
-          EOF
-
-          # docker-compose.yml (generated on runner)
-          cat > docker-compose.yml <<'YML'
-          version: "3.9"
-          networks:
-            app-network:
-              external: true
-
-          services:
-            db:
-              image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-              container_name: ${DB_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-              volumes:
-                - ${DB_VOLUME_NAME}:/var/lib/postgresql/data
-              env_file:
-                - ./secrets/database.env
-
-            backend:
-              image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-              container_name: ${BACKEND_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-              env_file:
-                - ./secrets/backend.env
-
-          volumes:
-            ${DB_VOLUME_NAME}: {}
-          YML
-
-      - name: Pull & Recreate via Compose
-        run: |
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker compose ps
-
-      - name: Prune old images (optional)
-        run: docker image prune -f
-
-  deploy-prod:
-    name: Deploy (Prod)
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, docker, prod]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Ensure external app network
-        run: docker network create "${{ env.APP_NETWORK }}" || true
-
-      - name: Prepare compose files
-        run: |
-          mkdir -p ./secrets
-
-          # Optional env files for services (from GitHub Secrets)
-          if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
-            printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
-          fi
-          if [ -n "${{ secrets.DATABASE_ENV_FILE }}" ]; then
-            printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
-          fi
-
-          # .env for Compose (prod)
-          cat > .env <<EOF
-          REGISTRY=${{ env.REGISTRY }}
-          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
-          DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
-
-          BACKEND_TAG=latest
-          DATABASE_TAG=latest
-
-          BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
-          BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
-          DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
-          DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
-
-          BACKEND_CONTAINER_NAME=api-prod
-          DB_CONTAINER_NAME=db-prod
-          DB_VOLUME_NAME=db-prod-data
-          EOF
-
-          # docker-compose.yml (generated on runner)
-          cat > docker-compose.yml <<'YML'
-          version: "3.9"
-          networks:
-            app-network:
-              external: true
-
-          services:
-            db:
-              image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-              container_name: ${DB_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-              volumes:
-                - ${DB_VOLUME_NAME}:/var/lib/postgresql/data
-              env_file:
-                - ./secrets/database.env
-
-            backend:
-              image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-              container_name: ${BACKEND_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-              env_file:
-                - ./secrets/backend.env
-
-          volumes:
-            ${DB_VOLUME_NAME}: {}
-          YML
-
-      - name: Pull & Recreate via Compose
-        run: |
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker compose ps
-
-      - name: Prune old images (optional)
-        run: docker image prune -f
+Update ci.yml · benedictnurs/distributed-messaging@4377dd7 
