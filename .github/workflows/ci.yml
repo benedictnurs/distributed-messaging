@@ -21,9 +21,17 @@ env:
 
   # Runtime
   APP_NETWORK: app-network
-  BACKEND_HOST_PORT: "443"
+
+  # Production Ports
+  PROD_BACKEND_HOST_PORT: "443"
+  PROD_DATABASE_HOST_PORT: "5432"
+
+  # Development Ports
+  DEV_BACKEND_HOST_PORT: "8443"
+  DEV_DATABASE_HOST_PORT: "5433"
+
+  # Common Container Ports
   BACKEND_CONTAINER_PORT: "443"
-  DATABASE_HOST_PORT: "5432"
   DATABASE_CONTAINER_PORT: "5432"
 
 jobs:
@@ -155,9 +163,9 @@ jobs:
           DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
           BACKEND_TAG=dev
           DATABASE_TAG=dev
-          BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
+          BACKEND_HOST_PORT=${{ env.DEV_BACKEND_HOST_PORT }}
           BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
-          DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
+          DATABASE_HOST_PORT=${{ env.DEV_DATABASE_HOST_PORT }}
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
           BACKEND_CONTAINER_NAME=api-dev
           DB_CONTAINER_NAME=db-dev
@@ -257,9 +265,9 @@ jobs:
           DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
           BACKEND_TAG=latest
           DATABASE_TAG=latest
-          BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
+          BACKEND_HOST_PORT=${{ env.PROD_BACKEND_HOST_PORT }}
           BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
-          DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
+          DATABASE_HOST_PORT=${{ env.PROD_DATABASE_HOST_PORT }}
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
           BACKEND_CONTAINER_NAME=api-prod
           DB_CONTAINER_NAME=db-prod
@@ -282,4 +290,3 @@ jobs:
 
       - name: Prune old images (optional)
         run: docker image prune -f
-
