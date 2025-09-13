@@ -94,6 +94,49 @@ jobs:
         run: docker network create "${{ env.APP_NETWORK }}" || true
 
       - name: Prepare compose files
+        env:
+          COMPOSE_FILE_WITH_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              db:
+                image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+                container_name: ${DB_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+                volumes:
+                  - db-data:/var/lib/postgresql/data
+                env_file:
+                  - ./secrets/database.env
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+            volumes:
+              db-data:
+                name: ${DB_VOLUME_NAME}
+          COMPOSE_FILE_NO_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
         run: |
           mkdir -p ./secrets
           touch ./secrets/backend.env
@@ -123,52 +166,10 @@ jobs:
 
           if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
             echo "Database Dockerfile found. Generating compose file with db service."
-            cat > docker-compose.yml <<'EOF'
-networks:
-  app-network:
-    external: true
-services:
-  db:
-    image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-    container_name: ${DB_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    env_file:
-      - ./secrets/database.env
-  backend:
-    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-    container_name: ${BACKEND_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-    env_file:
-      - ./secrets/backend.env
-volumes:
-  db-data:
-    name: ${DB_VOLUME_NAME}
-EOF
+            echo "$COMPOSE_FILE_WITH_DB" > docker-compose.yml
           else
             echo "Database Dockerfile not found. Generating compose file without db service."
-            cat > docker-compose.yml <<'EOF'
-networks:
-  app-network:
-    external: true
-services:
-  backend:
-    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-    container_name: ${BACKEND_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-    env_file:
-      - ./secrets/backend.env
-EOF
+            echo "$COMPOSE_FILE_NO_DB" > docker-compose.yml
           fi
 
       - name: Pull & Recreate via Compose
@@ -195,6 +196,49 @@ EOF
         run: docker network create "${{ env.APP_NETWORK }}" || true
 
       - name: Prepare compose files
+        env:
+          COMPOSE_FILE_WITH_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              db:
+                image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+                container_name: ${DB_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+                volumes:
+                  - db-data:/var/lib/postgresql/data
+                env_file:
+                  - ./secrets/database.env
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+            volumes:
+              db-data:
+                name: ${DB_VOLUME_NAME}
+          COMPOSE_FILE_NO_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
         run: |
           mkdir -p ./secrets
           touch ./secrets/backend.env
@@ -224,52 +268,10 @@ EOF
 
           if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
             echo "Database Dockerfile found. Generating compose file with db service."
-            cat > docker-compose.yml <<'EOF'
-networks:
-  app-network:
-    external: true
-services:
-  db:
-    image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-    container_name: ${DB_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    env_file:
-      - ./secrets/database.env
-  backend:
-    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-    container_name: ${BACKEND_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-    env_file:
-      - ./secrets/backend.env
-volumes:
-  db-data:
-    name: ${DB_VOLUME_NAME}
-EOF
+            echo "$COMPOSE_FILE_WITH_DB" > docker-compose.yml
           else
             echo "Database Dockerfile not found. Generating compose file without db service."
-            cat > docker-compose.yml <<'EOF'
-networks:
-  app-network:
-    external: true
-services:
-  backend:
-    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-    container_name: ${BACKEND_CONTAINER_NAME}
-    restart: unless-stopped
-    networks: [app-network]
-    ports:
-      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-    env_file:
-      - ./secrets/backend.env
-EOF
+            echo "$COMPOSE_FILE_NO_DB" > docker-compose.yml
           fi
 
       - name: Pull & Recreate via Compose
