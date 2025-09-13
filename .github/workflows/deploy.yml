@@ -1,0 +1,293 @@
+name: Build & Deploy (All-in-One)
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}-backend
+  DATABASE_IMAGE: ${{ github.repository }}-database
+
+  BACKEND_CONTEXT: ./backend
+  BACKEND_DOCKERFILE: ./backend/Dockerfile
+  DATABASE_CONTEXT: ./database
+  DATABASE_DOCKERFILE: ./database/Dockerfile
+
+  # Runtime
+  APP_NETWORK: app-network
+
+  # Production Ports
+  PROD_BACKEND_HOST_PORT: "443"
+  PROD_DATABASE_HOST_PORT: "5432"
+
+  # Development Ports
+  DEV_BACKEND_HOST_PORT: "8443"
+  DEV_DATABASE_HOST_PORT: "5433"
+
+  # Common Container Ports
+  BACKEND_CONTAINER_PORT: "443"
+  DATABASE_CONTAINER_PORT: "5432"
+
+jobs:
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    outputs:
+      backend_tag: ${{ steps.tags.outputs.backend_tag }}
+      database_tag: ${{ steps.tags.outputs.database_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Decide tags (latest for main, dev for dev)
+        id: tags
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "backend_tag=latest"  >> $GITHUB_OUTPUT
+            echo "database_tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "backend_tag=dev"  >> $GITHUB_OUTPUT
+            echo "database_tag=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Backend – Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.BACKEND_CONTEXT }}
+          file: ${{ env.BACKEND_DOCKERFILE }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ steps.tags.outputs.backend_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Database – Build & Push (skip if no Dockerfile)
+        if: ${{ hashFiles(env.DATABASE_DOCKERFILE) != '' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ env.DATABASE_CONTEXT }}
+          file: ${{ env.DATABASE_DOCKERFILE }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.DATABASE_IMAGE }}:${{ steps.tags.outputs.database_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-dev:
+    name: Deploy (Dev)
+    needs: build
+    if: github.ref == 'refs/heads/dev'
+    runs-on: [self-hosted, docker, dev]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Ensure external app network
+        run: docker network create "${{ env.APP_NETWORK }}" || true
+
+      - name: Prepare compose files
+        env:
+          COMPOSE_FILE_WITH_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              db:
+                image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+                container_name: ${DB_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+                volumes:
+                  - db-data:/var/lib/postgresql/data
+                env_file:
+                  - ./secrets/database.env
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+            volumes:
+              db-data:
+                name: ${DB_VOLUME_NAME}
+          COMPOSE_FILE_NO_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+        run: |
+          mkdir -p ./secrets
+          touch ./secrets/backend.env
+          touch ./secrets/database.env
+
+          if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
+            printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
+          fi
+          if [ -n "${{ secrets.DATABASE_ENV_FILE }}" ]; then
+            printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
+          fi
+
+          cat > .env <<EOF
+          REGISTRY=${{ env.REGISTRY }}
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
+          BACKEND_TAG=dev
+          DATABASE_TAG=dev
+          BACKEND_HOST_PORT=${{ env.DEV_BACKEND_HOST_PORT }}
+          BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
+          DATABASE_HOST_PORT=${{ env.DEV_DATABASE_HOST_PORT }}
+          DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
+          BACKEND_CONTAINER_NAME=api-dev
+          DB_CONTAINER_NAME=db-dev
+          DB_VOLUME_NAME=db-dev-data
+          EOF
+
+          if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
+            echo "Database Dockerfile found. Generating compose file with db service."
+            echo "$COMPOSE_FILE_WITH_DB" > docker-compose.yml
+          else
+            echo "Database Dockerfile not found. Generating compose file without db service."
+            echo "$COMPOSE_FILE_NO_DB" > docker-compose.yml
+          fi
+
+      - name: Pull & Recreate via Compose
+        run: |
+          docker compose --project-name dev-stack pull
+          docker compose --project-name dev-stack up -d --remove-orphans
+          docker compose --project-name dev-stack ps
+
+      - name: Prune old images (optional)
+        run: docker image prune -f
+
+  deploy-prod:
+    name: Deploy (Prod)
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, docker, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Ensure external app network
+        run: docker network create "${{ env.APP_NETWORK }}" || true
+
+      - name: Prepare compose files
+        env:
+          COMPOSE_FILE_WITH_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              db:
+                image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+                container_name: ${DB_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+                volumes:
+                  - db-data:/var/lib/postgresql/data
+                env_file:
+                  - ./secrets/database.env
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+            volumes:
+              db-data:
+                name: ${DB_VOLUME_NAME}
+          COMPOSE_FILE_NO_DB: |
+            networks:
+              app-network:
+                external: true
+            services:
+              backend:
+                image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+                container_name: ${BACKEND_CONTAINER_NAME}
+                restart: unless-stopped
+                networks: [app-network]
+                ports:
+                  - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+                env_file:
+                  - ./secrets/backend.env
+        run: |
+          mkdir -p ./secrets
+          touch ./secrets/backend.env
+          touch ./secrets/database.env
+
+          if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
+            printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
+          fi
+          if [ -n "${{ secrets.DATABASE_ENV_FILE }}" ]; then
+            printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
+          fi
+
+          cat > .env <<EOF
+          REGISTRY=${{ env.REGISTRY }}
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
+          BACKEND_TAG=latest
+          DATABASE_TAG=latest
+          BACKEND_HOST_PORT=${{ env.PROD_BACKEND_HOST_PORT }}
+          BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
+          DATABASE_HOST_PORT=${{ env.PROD_DATABASE_HOST_PORT }}
+          DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
+          BACKEND_CONTAINER_NAME=api-prod
+          DB_CONTAINER_NAME=db-prod
+          DB_VOLUME_NAME=db-prod-data
+          EOF
+
+          if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
+            echo "Database Dockerfile found. Generating compose file with db service."
+            echo "$COMPOSE_FILE_WITH_DB" > docker-compose.yml
+          else
+            echo "Database Dockerfile not found. Generating compose file without db service."
+            echo "$COMPOSE_FILE_NO_DB" > docker-compose.yml
+          fi
+
+      - name: Pull & Recreate via Compose
+        run: |
+          docker compose --project-name prod-stack pull
+          docker compose --project-name prod-stack up -d --remove-orphans
+          docker compose --project-name prod-stack ps
+
+      - name: Prune old images (optional)
+        run: docker image prune -f
+
