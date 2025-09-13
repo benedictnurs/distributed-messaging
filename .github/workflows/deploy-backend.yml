@@ -62,7 +62,7 @@ jobs:
   deploy:
     name: Deploy to Server
     needs: build
-    runs-on: [self-hosted, terraform, vultr, docker]
+    runs-on: [self-hosted, prod]
     
     steps:
       - name: Deploy new container
