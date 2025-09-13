@@ -1,7 +1,0 @@
-name: SMOKE
-on: workflow_dispatch
-jobs:
-  ping:
-    runs-on: [self-hosted]   # <— ONLY this label
-    steps:
-      - run: echo "✅ Picked up by $(hostname)"; uname -a
