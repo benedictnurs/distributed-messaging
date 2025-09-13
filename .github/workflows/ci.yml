@@ -96,6 +96,8 @@ jobs:
       - name: Prepare compose files
         run: |
           mkdir -p ./secrets
+          touch ./secrets/backend.env
+          touch ./secrets/database.env
 
           if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
             printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
@@ -119,39 +121,55 @@ jobs:
           DB_VOLUME_NAME=db-dev-data
           EOF
 
-          cat > docker-compose.yml <<'YML'
-          version: "3.9"
-          networks:
-            app-network:
-              external: true
-
-          services:
-            db:
-              image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-              container_name: ${DB_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-              volumes:
-                - db-data:/var/lib/postgresql/data
-              env_file:
-                - ./secrets/database.env
-
-            backend:
-              image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-              container_name: ${BACKEND_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-              env_file:
-                - ./secrets/backend.env
-
-          volumes:
-            db-data:
-              name: ${DB_VOLUME_NAME}
-          YML
+          if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
+            echo "Database Dockerfile found. Generating compose file with db service."
+            cat > docker-compose.yml <<'EOF'
+networks:
+  app-network:
+    external: true
+services:
+  db:
+    image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+    container_name: ${DB_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file:
+      - ./secrets/database.env
+  backend:
+    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+    env_file:
+      - ./secrets/backend.env
+volumes:
+  db-data:
+    name: ${DB_VOLUME_NAME}
+EOF
+          else
+            echo "Database Dockerfile not found. Generating compose file without db service."
+            cat > docker-compose.yml <<'EOF'
+networks:
+  app-network:
+    external: true
+services:
+  backend:
+    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+    env_file:
+      - ./secrets/backend.env
+EOF
+          fi
 
       - name: Pull & Recreate via Compose
         run: |
@@ -179,6 +197,8 @@ jobs:
       - name: Prepare compose files
         run: |
           mkdir -p ./secrets
+          touch ./secrets/backend.env
+          touch ./secrets/database.env
 
           if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
             printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
@@ -199,42 +219,58 @@ jobs:
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
           BACKEND_CONTAINER_NAME=api-prod
           DB_CONTAINER_NAME=db-prod
-          DB_VOLUME_NAME=db-prod-data
+          DB_VOLUME_name=db-prod-data
           EOF
 
-          cat > docker-compose.yml <<'YML'
-          version: "3.9"
-          networks:
-            app-network:
-              external: true
-
-          services:
-            db:
-              image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
-              container_name: ${DB_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
-              volumes:
-                - db-data:/var/lib/postgresql/data
-              env_file:
-                - ./secrets/database.env
-
-            backend:
-              image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
-              container_name: ${BACKEND_CONTAINER_NAME}
-              restart: unless-stopped
-              networks: [app-network]
-              ports:
-                - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
-              env_file:
-                - ./secrets/backend.env
-
-          volumes:
-            db-data:
-              name: ${DB_VOLUME_NAME}
-          YML
+          if [ -f "${{ env.DATABASE_DOCKERFILE }}" ]; then
+            echo "Database Dockerfile found. Generating compose file with db service."
+            cat > docker-compose.yml <<'EOF'
+networks:
+  app-network:
+    external: true
+services:
+  db:
+    image: ${REGISTRY}/${DATABASE_IMAGE}:${DATABASE_TAG}
+    container_name: ${DB_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    env_file:
+      - ./secrets/database.env
+  backend:
+    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+    env_file:
+      - ./secrets/backend.env
+volumes:
+  db-data:
+    name: ${DB_VOLUME_NAME}
+EOF
+          else
+            echo "Database Dockerfile not found. Generating compose file without db service."
+            cat > docker-compose.yml <<'EOF'
+networks:
+  app-network:
+    external: true
+services:
+  backend:
+    image: ${REGISTRY}/${BACKEND_IMAGE}:${BACKEND_TAG}
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: unless-stopped
+    networks: [app-network]
+    ports:
+      - "${BACKEND_HOST_PORT}:${BACKEND_CONTAINER_PORT}"
+    env_file:
+      - ./secrets/backend.env
+EOF
+          fi
 
       - name: Pull & Recreate via Compose
         run: |
@@ -244,4 +280,3 @@ jobs:
 
       - name: Prune old images (optional)
         run: docker image prune -f
-
