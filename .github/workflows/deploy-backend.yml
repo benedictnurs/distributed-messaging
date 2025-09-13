@@ -135,4 +135,3 @@ jobs:
           elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
             echo "⏭️ Deployment skipped"
           fi
-Update ci.yml · benedictnurs/distributed-messaging@4377dd7 
