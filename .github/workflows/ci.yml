@@ -97,7 +97,6 @@ jobs:
         run: |
           mkdir -p ./secrets
 
-          # Optional env files for services (from GitHub Secrets)
           if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
             printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
           fi
@@ -105,26 +104,21 @@ jobs:
             printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
           fi
 
-          # .env for Compose (dev)
           cat > .env <<EOF
           REGISTRY=${{ env.REGISTRY }}
           BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
           DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
-
           BACKEND_TAG=dev
           DATABASE_TAG=dev
-
           BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
           BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
           DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
-
           BACKEND_CONTAINER_NAME=api-dev
           DB_CONTAINER_NAME=db-dev
           DB_VOLUME_NAME=db-dev-data
           EOF
 
-          # docker-compose.yml (generated on runner)
           cat > docker-compose.yml <<'YML'
           version: "3.9"
           networks:
@@ -140,7 +134,7 @@ jobs:
               ports:
                 - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
               volumes:
-                - ${DB_VOLUME_NAME}:/var/lib/postgresql/data
+                - db-data:/var/lib/postgresql/data
               env_file:
                 - ./secrets/database.env
 
@@ -155,7 +149,8 @@ jobs:
                 - ./secrets/backend.env
 
           volumes:
-            ${DB_VOLUME_NAME}: {}
+            db-data:
+              name: ${DB_VOLUME_NAME}
           YML
 
       - name: Pull & Recreate via Compose
@@ -185,7 +180,6 @@ jobs:
         run: |
           mkdir -p ./secrets
 
-          # Optional env files for services (from GitHub Secrets)
           if [ -n "${{ secrets.BACKEND_ENV_FILE }}" ]; then
             printf "%s" "${{ secrets.BACKEND_ENV_FILE }}" > ./secrets/backend.env
           fi
@@ -193,26 +187,21 @@ jobs:
             printf "%s" "${{ secrets.DATABASE_ENV_FILE }}" > ./secrets/database.env
           fi
 
-          # .env for Compose (prod)
           cat > .env <<EOF
           REGISTRY=${{ env.REGISTRY }}
           BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
           DATABASE_IMAGE=${{ env.DATABASE_IMAGE }}
-
           BACKEND_TAG=latest
           DATABASE_TAG=latest
-
           BACKEND_HOST_PORT=${{ env.BACKEND_HOST_PORT }}
           BACKEND_CONTAINER_PORT=${{ env.BACKEND_CONTAINER_PORT }}
           DATABASE_HOST_PORT=${{ env.DATABASE_HOST_PORT }}
           DATABASE_CONTAINER_PORT=${{ env.DATABASE_CONTAINER_PORT }}
-
           BACKEND_CONTAINER_NAME=api-prod
           DB_CONTAINER_NAME=db-prod
           DB_VOLUME_NAME=db-prod-data
           EOF
 
-          # docker-compose.yml (generated on runner)
           cat > docker-compose.yml <<'YML'
           version: "3.9"
           networks:
@@ -228,7 +217,7 @@ jobs:
               ports:
                 - "${DATABASE_HOST_PORT}:${DATABASE_CONTAINER_PORT}"
               volumes:
-                - ${DB_VOLUME_NAME}:/var/lib/postgresql/data
+                - db-data:/var/lib/postgresql/data
               env_file:
                 - ./secrets/database.env
 
@@ -243,7 +232,8 @@ jobs:
                 - ./secrets/backend.env
 
           volumes:
-            ${DB_VOLUME_NAME}: {}
+            db-data:
+              name: ${DB_VOLUME_NAME}
           YML
 
       - name: Pull & Recreate via Compose
@@ -254,3 +244,4 @@ jobs:
 
       - name: Prune old images (optional)
         run: docker image prune -f
+
