@@ -1,0 +1,315 @@
+name: Build & Deploy Services
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+    inputs:
+      target_services:
+        description: "Services to deploy (comma-separated or all)"
+        required: false
+        default: "all"
+        type: string
+      force_rebuild:
+        description: "Force rebuild all images (no cache)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  PRODUCT_NAME: "seshon"
+
+jobs:
+  parse-services:
+    name: Parse Services Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      services_matrix: ${{ steps.parse.outputs.services_matrix }}
+      filtered_services: ${{ steps.parse.outputs.filtered_services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse services configuration
+        id: parse
+        shell: bash
+        env:
+          TARGET_SERVICES: ${{ github.event_name == 'workflow_dispatch' && inputs.target_services || 'all' }}
+          FORCE_REBUILD:  ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild  || 'false' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+
+          services_data = r"""{"api-prod":{"container_name":"my-prod-api","container_port":8080},"api-staging":{"container_name":"my-staging-api","container_port":8080}}"""
+          services = json.loads(services_data)
+
+          current_branch  = os.environ.get("GITHUB_REF_NAME", "main")
+          target_services = os.environ.get("TARGET_SERVICES", "all")
+          force_rebuild   = os.environ.get("FORCE_REBUILD", "false").lower() == "true"
+
+          REG  = os.environ.get("REGISTRY", "ghcr.io")
+          REPO = os.environ.get("GITHUB_REPOSITORY", "")  # "owner/repo"
+
+          targets  = [s.strip() for s in (target_services or "").split(",") if s.strip()]
+          filtered = []
+
+          for name, cfg in services.items():
+              svc_branch = cfg.get("branch", "main")
+
+              # Manual run: select by list or "all"; Push run: match current branch
+              if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+                  include = (target_services == "all" or name in targets)
+              else:
+                  include = (svc_branch == current_branch)
+
+              if force_rebuild:
+                  include = True
+
+              if include:
+                  filtered.append({
+                      "name": name,
+                      "container_name": cfg["container_name"],
+                      "container_port": cfg["container_port"],
+                      "branch": svc_branch,
+                      "dockerfile": cfg["docker_file_location"],
+                      "image_name": f"{REG}/{REPO}-{name}",
+                      "should_deploy": (svc_branch == current_branch),
+                  })
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("services_matrix=" + json.dumps(filtered) + "\n")
+              f.write("filtered_services=" + json.dumps([s["name"] for s in filtered]) + "\n")
+
+          print(f"Found {len(filtered)} services for branch {current_branch}:")
+          for s in filtered:
+              print(f"  - {s['name']} -> {s['image_name']} ({'deploy' if s['should_deploy'] else 'build-only'})")
+          PY
+
+  build:
+    name: Build and Push Images
+    needs: parse-services
+    if: ${{ needs.parse-services.outputs.services_matrix != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.parse-services.outputs.services_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.PAT_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        shell: bash
+        run: |
+          TIMESTAMP="$$(date +%Y%m%d-%H%M%S)"
+          SHORT_SHA="$$(echo "$$GITHUB_SHA" | cut -c1-7)"
+
+          # main -> latest; others -> branch name
+          BRANCH_TAG="$$GITHUB_REF_NAME"
+          if [ "$$GITHUB_REF_NAME" = "main" ]; then
+            BRANCH_TAG="latest"
+          fi
+
+          IMAGE_BASE="${{ matrix.service.image_name }}"
+
+          {
+            printf 'unique_tag=%s-%s\n' "$$TIMESTAMP" "$$SHORT_SHA"
+            printf 'branch_tag=%s\n' "$$BRANCH_TAG"
+            printf 'image_base=%s\n' "$$IMAGE_BASE"
+            printf 'full_image=%s:%s-%s\n' "$$IMAGE_BASE" "$$TIMESTAMP" "$$SHORT_SHA"
+          } >> "$$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.full_image }}
+            ${{ steps.meta.outputs.image_base }}:${{ steps.meta.outputs.branch_tag }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}
+          cache-to:   type=gha,mode=max,scope=${{ matrix.service.name }}
+          no-cache:   ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+          pull:       ${{ github.event_name == 'workflow_dispatch' && inputs.force_rebuild || false }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.service.name }}
+            org.opencontainers.image.description=Container for ${{ matrix.service.name }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Output build result
+        shell: bash
+        run: |
+          echo "✅ Built:"
+          echo "  ${{ steps.meta.outputs.full_image }}"
+          echo "  + tag '${{ steps.meta.outputs.branch_tag }}'"
+
+  deploy:
+    name: Deploy to Server
+    needs: [parse-services, build]
+    if: success()
+    runs-on: self-hosted
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure jq present
+        shell: bash
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+      - name: Setup deployment environment
+        id: setup
+        shell: bash
+        run: |
+          # PRODUCT_NAME is provided from top-level env (already rendered by Terraform)
+          ENVIRONMENT="staging"
+          if [ "$$GITHUB_REF_NAME" = "main" ]; then
+            ENVIRONMENT="production"
+          fi
+
+          # Avoid ${...} to keep Terraform happy; use printf for concatenation
+          NETWORK_NAME="$$(printf '%s-network' "$$PRODUCT_NAME")"
+
+          {
+            printf 'product_name=%s\n' "$$PRODUCT_NAME"
+            printf 'network_name=%s\n' "$$NETWORK_NAME"
+            printf 'environment=%s\n' "$$ENVIRONMENT"
+          } >> "$$GITHUB_OUTPUT"
+
+          echo "🚀 Deploying to: $$ENVIRONMENT"
+          echo "🌐 Network: $$NETWORK_NAME"
+          echo "📋 Services: ${{ needs.parse-services.outputs.filtered_services }}"
+
+      - name: Log in to registry
+        shell: bash
+        run: |
+          echo "${{ secrets.PAT_TOKEN }}" | docker login "$$REGISTRY" -u "${{ github.actor }}" --password-stdin
+
+      - name: Create network if needed
+        shell: bash
+        run: |
+          NETWORK_NAME="${{ steps.setup.outputs.network_name }}"
+          if ! docker network ls --format '{{.Name}}' | grep -qx "$$NETWORK_NAME"; then
+            echo "🌐 Creating network: $$NETWORK_NAME"
+            docker network create "$$NETWORK_NAME"
+          else
+            echo "🌐 Network already exists: $$NETWORK_NAME"
+          fi
+
+      - name: Deploy services
+        shell: bash
+        run: |
+          SERVICES_JSON='${{ needs.parse-services.outputs.services_matrix }}'
+          NETWORK_NAME="${{ steps.setup.outputs.network_name }}"
+          BRANCH_TAG="$$GITHUB_REF_NAME"
+          if [ "$$GITHUB_REF_NAME" = "main" ]; then
+            BRANCH_TAG="latest"
+          fi
+
+          echo "$$SERVICES_JSON" | jq -c '.[]' | while read -r service; do
+            NAME=$$(echo "$$service" | jq -r '.name')
+            CNAME=$$(echo "$$service" | jq -r '.container_name')
+            CPORT=$$(echo "$$service" | jq -r '.container_port')
+            DEPLOY=$$(echo "$$service" | jq -r '.should_deploy')
+            IMAGE_BASE=$$(echo "$$service" | jq -r '.image_name')
+            IMAGE="$$IMAGE_BASE:$$BRANCH_TAG"
+
+            if [ "$$DEPLOY" = "true" ]; then
+              echo "🔄 Deploying $$NAME ($$CNAME)"
+
+              # Stop/remove existing container if present
+              if docker ps -a --format '{{.Names}}' | grep -qx "$$CNAME"; then
+                docker stop "$$CNAME" || true
+                docker rm   "$$CNAME" || true
+              fi
+
+              echo "📥 Pulling: $$IMAGE"
+              docker pull "$$IMAGE"
+
+              echo "🚀 Starting: $$CNAME"
+              docker run -d \
+                --name "$$CNAME" \
+                --network "$$NETWORK_NAME" \
+                --restart unless-stopped \
+                -p "$$CPORT:$$CPORT" \
+                "$$IMAGE"
+
+              sleep 3
+              if docker ps --format '{{.Names}}' | grep -qx "$$CNAME"; then
+                echo "✅ $$NAME up"
+                echo "   📡 Internal: $$CNAME:$$CPORT"
+                echo "   🌐 External: localhost:$$CPORT"
+              else
+                echo "❌ $$NAME failed to start"
+                docker logs "$$CNAME" --tail 50 || true
+                exit 1
+              fi
+            else
+              echo "⏭️  Skipping $$NAME (different branch)"
+            fi
+          done
+
+      - name: Deployment verification
+        shell: bash
+        run: |
+          NETWORK_NAME="${{ steps.setup.outputs.network_name }}"
+          echo "🏥 Verifying deployment..."
+          docker ps --filter "network=$$NETWORK_NAME" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"
+
+      - name: Cleanup old images
+        shell: bash
+        run: |
+          echo "🧹 Pruning old images (>7 days since last use)..."
+          docker image prune -f --filter "until=168h"
+
+  notify:
+    name: Deployment Summary
+    needs: [parse-services, build, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create summary
+        shell: bash
+        run: |
+          {
+            echo "## 🚀 Deployment Summary"
+            echo
+            echo "**Product:** ${{ env.PRODUCT_NAME }}"
+            echo "**Branch:** ${{ github.ref_name }}"
+            echo "**Environment:** ${{ github.ref_name == 'main' && 'Production' || 'Staging' }}"
+            echo "**Commit:** ${{ github.sha }}"
+            echo
+            echo "**Services Processed:** ${{ needs.parse-services.outputs.filtered_services }}"
+            echo
+            echo "**Job Results:**"
+            echo "- Parse Services: ${{ needs.parse-services.result }}"
+            echo "- Build Images: ${{ needs.build.result }}"
+            echo "- Deploy: ${{ needs.deploy.result }}"
+            if [ "${{ needs.deploy.result }}" = "success" ]; then
+              echo
+              echo "✅ **Deployment completed successfully!**"
+            else
+              echo
+              echo "❌ **Deployment encountered issues. Check logs for details.**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
