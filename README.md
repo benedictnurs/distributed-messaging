@@ -1,7 +1,6 @@
 
 # Seshon
 
-
 This project is a distributed messaging platform designed for real-time, low-latency communication. It leverages Go and WebSockets for backend functionality and is deployed using Docker on AWS EC2. The platform has been rigorously tested to ensure scalability and reliability, handling high concurrency and load scenarios.
 
 ## How It Works
