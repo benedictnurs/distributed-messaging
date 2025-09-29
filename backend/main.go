@@ -311,6 +311,6 @@ func main() {
 	})
 
 	handler := c.Handler(http.DefaultServeMux)
-	log.Println("Server started on port 443")
-	http.ListenAndServe(":443", handler)
+	log.Println("Server started on port 8080")
+	http.ListenAndServe(":8080", handler)
 }

@@ -83,7 +83,7 @@ const Room = () => {
     setCurrentUsername(username);
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    /*const wsURL = `${protocol}://${window.location.hostname}:443/ws?roomID=${roomID}&username=${username}`; */
+    /*const wsURL = `${protocol}://${window.location.hostname}:8080/ws?roomID=${roomID}&username=${username}`; */
     const wsURL = `wss://api.seshon.tech/ws?roomID=${roomID}&username=${username}`;
     socketRef.current = new WebSocket(wsURL);
   

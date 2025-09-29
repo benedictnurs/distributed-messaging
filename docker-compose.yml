@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: chat-backend
     ports:
-      - "443:443"
+      - "8080:8080"
     networks:
       - chat-network
 
@@ -17,7 +17,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - BACKEND_URL=http://chat-backend:443
+      - BACKEND_URL=http://chat-backend:8080
     networks:
       - chat-network
     depends_on:
